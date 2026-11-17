@@ -407,6 +407,10 @@
 
       /* banner / turn band / flash */
       #fx-layer { position: fixed; inset: 0; z-index: 40; pointer-events: none; }
+      /* Each FX kind lives in its own slot so one kind expiring never
+         recreates a sibling's DOM (see renderFx): recreating the
+         banner node mid-hold restarted all of its CSS animations. */
+      .fx-slot { position: absolute; inset: 0; pointer-events: none; }
       .fx-flash { position: absolute; inset: 0; animation: flashGold 0.65s ease-out both; }
       .fx-banner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
       .fx-banner .inner { text-align: center; padding: 0 24px; }
@@ -851,7 +855,7 @@
     </div>
     <div class="mat-vignette" aria-hidden="true"></div>
 
-    <div id="fx-layer"></div>
+    <div id="fx-layer"><div class="fx-slot" id="fx-slot-flash"></div><div class="fx-slot" id="fx-slot-banner"></div><div class="fx-slot" id="fx-slot-turn"></div></div>
     <div id="fx-burst" aria-hidden="true"></div>
 
     <main class="wrap">
@@ -1103,8 +1107,61 @@
           g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
           src.connect(flt); flt.connect(g); g.connect(sfxBus); src.start(t0); src.stop(t0 + dur + 0.05);
         }
+        /* Letter-slam tick: one quiet low floor-tom thud per glyph
+           of an effect name, scheduled to land as the glyph itself
+           lands (the caller passes the CSS animation's base delay,
+           stagger and landing offset). Pitch is FIXED for every
+           glyph — no climb, no brighter final hit — just the same
+           low tom: a sine whose pitch drops like a struck tom skin
+           (148Hz → 82Hz) plus a short lowpassed noise thump, kept
+           deliberately small in volume. `soft` is the dormant
+           variant — same pitch and rhythm, even quieter. All of
+           it is synthesized, so the whole text-sound layer costs
+           zero audio assets. */
+        function letterTick(delay, i, n, soft) {
+          var vol = soft ? 0.018 : 0.038;
+          tone({ f: 148, f2: 82, type: "sine", dur: soft ? 0.22 : 0.28, vol: vol, delay: delay });
+          noiseS({ dur: 0.06, vol: vol * 0.45, f: 380, type: "lowpass", delay: delay });
+        }
         var sfx = {
           draw: function () { noiseS({ dur: 0.22, vol: 0.1, f: 900, f2: 2600, q: 0.7 }); },
+          /* Per-letter ticks for a whole effect name. o.base / o.stagger
+             mirror the title's CSS letter animation (delay of the first
+             glyph / gap between glyphs, seconds) and o.land is how far
+             into one glyph's animation its visual impact lands. */
+          letters: function (n, o) {
+            o = o || {};
+            var base = o.base || 0, stagger = o.stagger || 0.1, land = o.land || 0.3;
+            for (var i = 0; i < Math.max(1, n || 1); i++) letterTick(base + i * stagger + land, i, n || 1, !!o.soft);
+          },
+          /* A short signature cue per effect, played under the letter
+             ticks when its splash / showcase / banner appears, so every
+             effect is identifiable by ear as well as by icon. 守護 and
+             交換 keep their dedicated block() / swap() cues instead. */
+          effectCue: function (title, variant) {
+            if (variant === "dormant") { tone({ f: 233, f2: 196, type: "triangle", dur: 0.6, vol: 0.022 }); return; }
+            if (title === "革命") { noiseS({ dur: 0.55, vol: 0.06, f: 320, f2: 1900, q: 0.8 }); tone({ f: 98, f2: 196, type: "triangle", dur: 0.55, vol: 0.05 }); }
+            else if (title === "捜査") { tone({ f: 1567.98, dur: 0.07, vol: 0.035 }); tone({ f: 1567.98, dur: 0.07, vol: 0.035, delay: 0.13 }); tone({ f: 2093, dur: 0.12, vol: 0.045, delay: 0.26 }); }
+            else if (title === "透視") { tone({ f: 523.25, f2: 1046.5, dur: 0.5, vol: 0.038 }); tone({ f: 1046.5, dur: 0.7, vol: 0.02, delay: 0.18 }); }
+            else if (title === "疫病") { tone({ f: 196, f2: 65.41, type: "triangle", dur: 0.6, vol: 0.085 }); noiseS({ dur: 0.45, vol: 0.05, f: 420, type: "lowpass" }); }
+            else if (title === "対面") { tone({ f: 329.63, dur: 0.35, vol: 0.04 }); tone({ f: 329.63, dur: 0.35, vol: 0.04, delay: 0.17 }); }
+            else if (title === "対決") { noiseS({ dur: 0.16, vol: 0.085, f: 2500, q: 1.1 }); tone({ f: 220, f2: 110, type: "triangle", dur: 0.28, vol: 0.07, delay: 0.02 }); tone({ f: 1760, dur: 0.3, vol: 0.02, delay: 0.03 }); }
+            else if (title === "選択") { noiseS({ dur: 0.3, vol: 0.045, f: 700, f2: 1900, q: 0.9 }); tone({ f: 659.25, dur: 0.4, vol: 0.032, delay: 0.06 }); tone({ f: 783.99, dur: 0.5, vol: 0.032, delay: 0.22 }); }
+            else if (title === "公開処刑") { tone({ f: 196, dur: 1.3, vol: 0.065 }); tone({ f: 98, dur: 1.6, vol: 0.055 }); tone({ f: 392, dur: 0.9, vol: 0.022, delay: 0.02 }); }
+          },
+          /* Blocked variant: the crack that splits the effect name
+             (fires at the CSS crack's 27%-of-hold moment). */
+          crack: function (delay) { noiseS({ dur: 0.3, vol: 0.09, f: 2600, f2: 280, q: 1.1, delay: delay }); tone({ f: 330, f2: 66, type: "triangle", dur: 0.32, vol: 0.07, delay: delay }); },
+          /* A stamp landing (「守護 ― 無効」 stamp, reveal modal stamps). */
+          stampThud: function (delay) { tone({ f: 118, f2: 52, type: "triangle", dur: 0.22, vol: 0.15, delay: delay }); noiseS({ dur: 0.07, vol: 0.07, f: 800, type: "lowpass", delay: delay }); },
+          /* Plain banner title: bannerIn reaches full scale at ~55%
+             of its 0.6s, so a tick at the start and the hit at 0.3s. */
+          bannerHit: function () { tone({ f: 1318.5, type: "triangle", dur: 0.1, vol: 0.04 }); tone({ f: 165, f2: 82, type: "triangle", dur: 0.2, vol: 0.06, delay: 0.3 }); noiseS({ dur: 0.04, vol: 0.03, f: 3600, type: "highpass", delay: 0.3 }); },
+          /* 捜査 hit: the crosshair snapping onto the revealed card. */
+          lockOn: function (delay) { tone({ f: 1567.98, dur: 0.06, vol: 0.04, delay: delay }); tone({ f: 2093, dur: 0.1, vol: 0.05, delay: delay + 0.11 }); },
+          /* Soft entrance for the non-splash modals (透視 peek, 対面/
+             対決 faceoff, 公開処刑 watch) whose titles rise in. */
+          modalIn: function () { noiseS({ dur: 0.18, vol: 0.04, f: 900, f2: 2100, q: 0.8 }); tone({ f: 587.33, dur: 0.35, vol: 0.028, delay: 0.03 }); },
           play: function () { noiseS({ dur: 0.1, vol: 0.14, f: 1800, f2: 700 }); tone({ f: 170, f2: 85, dur: 0.16, vol: 0.16 }); },
           chime: function () { tone({ f: 659.25, dur: 1.1, vol: 0.055 }); tone({ f: 880, dur: 1.3, vol: 0.045, delay: 0.09 }); tone({ f: 220, dur: 1.4, vol: 0.04 }); },
           hit: function () { tone({ f: 96, f2: 48, type: "triangle", dur: 0.45, vol: 0.3 }); noiseS({ dur: 0.16, vol: 0.16, f: 700, f2: 200, type: "lowpass" }); tone({ f: 392, f2: 196, type: "triangle", dur: 0.5, vol: 0.07, delay: 0.05 }); },
@@ -1405,7 +1462,7 @@
       var inspectCard = null;      // hand card being viewed (local)
       var replayIdx = null;
       var soundOff = false;
-      var seenFx = { banner: 0, turn: 0, flash: 0, result: "", playShow: 0 };
+      var seenFx = { banner: 0, turn: 0, flash: 0, result: "", playShow: 0, reveal: 0, modalIn: 0 };
       var dragging = false;
 
       // ---------- render de-duplication (anti "reload" flicker) ----------
@@ -1440,7 +1497,8 @@
       }
       function fxSig() {
         return sigStr({ f: gs.flash, b: gs.banner, t: gs.turnNote, r: gs.result, mn: gs.matchNo, ms: mySeat(),
-          ps: gs.modal && gs.modal.kind === "playShow" ? gs.modal.id : 0 });
+          ps: gs.modal && gs.modal.kind === "playShow" ? gs.modal.id : 0,
+          md: gs.modal ? gs.modal.id : 0 });
       }
       function appSig() {
         if (!inRoom) {
@@ -3026,12 +3084,22 @@
         setTimeout(function () { if (g.parentNode) g.parentNode.removeChild(g); }, 1800);
       }
 
+      /* Per-slot render cache for the FX layer. The layer used to be
+         rebuilt as one innerHTML string whenever ANY fx field changed,
+         so when two effects overlapped, the shorter one's timed clear
+         recreated the longer one's DOM and restarted every CSS
+         animation inside it from zero. That was the 賢者の選択 bug:
+         beginTurn fires the turn band (950ms) and the 「選択」 splash
+         (1500ms) together, and at 950ms the band's expiry rebuilt the
+         layer — the splash blinked out and slammed in a second time.
+         Now each kind renders into its own slot and a slot's DOM is
+         touched only when that kind's own markup changes. */
+      var lastFxSlots = { flash: null, banner: null, turn: null };
       function renderFx() {
-        var el = document.getElementById("fx-layer");
         var ms = mySeat();
-        var h = "";
+        var flashH = "", bannerH = "", turnH = "";
         if (gs.flash) {
-          h += '<div class="fx-flash" style="background:' +
+          flashH = '<div class="fx-flash" style="background:' +
             (gs.flash.color === "gold"
               ? "radial-gradient(circle at 50% 45%, rgba(230,204,133,0.28), rgba(201,169,98,0) 65%)"
               : "radial-gradient(circle at 50% 45%, rgba(179,55,47,0.3), rgba(120,20,16,0) 65%)") + '"></div>';
@@ -3043,7 +3111,7 @@
             var dur = b.ms || 1500;
             var lenCls = "len-" + Math.min(4, Math.max(2, String(b.title).length));
             var toneCls = b.tone === "red" ? "tone-red" : b.tone === "white" ? "tone-white" : "tone-gold";
-            h += '<div class="fx-effect ' + b.variant + " " + toneCls + '" style="--fx-dur:' + dur + 'ms" role="status" aria-label="効果発動：' + esc(b.title) + '">' +
+            bannerH = '<div class="fx-effect ' + b.variant + " " + toneCls + '" style="--fx-dur:' + dur + 'ms" role="status" aria-label="効果発動：' + esc(b.title) + '">' +
               '<div class="fx-effect-bg"></div>' +
               effectIcon(b.title) +
               effectShape(b) +
@@ -3058,16 +3126,30 @@
           } else {
             var color = b.tone === "red" ? "#e0655c" : b.tone === "white" ? "#ece5d3" : "#ecd28a";
             var shadow = b.tone === "red" ? "0 0 22px rgba(179,55,47,0.55)" : "0 0 22px rgba(201,169,98,0.4)";
-            h += '<div class="fx-banner"><div class="inner' + animOnce("fxbanner:" + b.id, " anim-banner") + '"><p class="b-title" style="color:' + color + ";text-shadow:" + shadow + '">' + esc(b.title) + "</p>" +
+            bannerH = '<div class="fx-banner"><div class="inner' + animOnce("fxbanner:" + b.id, " anim-banner") + '"><p class="b-title" style="color:' + color + ";text-shadow:" + shadow + '">' + esc(b.title) + "</p>" +
               (b.sub ? '<p class="b-sub">' + esc(b.sub) + "</p>" : "") + "</div></div>";
           }
         }
-        if (gs.turnNote && ms >= 0) {
+        /* The turn band and a banner are both full-screen centred
+           pieces, so the band yields while a banner is up — the 賢者
+           splash already names whose pick it is. (The band's sound cue
+           below is keyed to turnNote itself and still plays.) */
+        if (gs.turnNote && ms >= 0 && !gs.banner) {
           var mine = gs.turnNote.seat === ms;
-          h += '<div class="fx-turnband"><div class="band' + animOnce("fxturn:" + gs.turnNote.id, " anim-turnband") + '"><div class="band-in ' + (mine ? "mine" : "theirs") + '">' +
+          turnH = '<div class="fx-turnband"><div class="band' + animOnce("fxturn:" + gs.turnNote.id, " anim-turnband") + '"><div class="band-in ' + (mine ? "mine" : "theirs") + '">' +
             '<span class="line"></span><p class="t">' + (mine ? "あなたのターン" : "相手のターン") + '</p><span class="line"></span></div></div></div>';
         }
-        el.innerHTML = h;
+        var slotFlash = document.getElementById("fx-slot-flash");
+        var slotBanner = document.getElementById("fx-slot-banner");
+        var slotTurn = document.getElementById("fx-slot-turn");
+        if (slotFlash && slotBanner && slotTurn) {
+          if (flashH !== lastFxSlots.flash) { lastFxSlots.flash = flashH; slotFlash.innerHTML = flashH; }
+          if (bannerH !== lastFxSlots.banner) { lastFxSlots.banner = bannerH; slotBanner.innerHTML = bannerH; }
+          if (turnH !== lastFxSlots.turn) { lastFxSlots.turn = turnH; slotTurn.innerHTML = turnH; }
+        } else {
+          var el = document.getElementById("fx-layer");
+          if (el) el.innerHTML = flashH + bannerH + turnH;
+        }
         // visual bursts keyed to fx ids (each client renders its own)
         if (gs.flash && gs.flash.id !== seenFx.flash) {
           seenFx.flash = gs.flash.id;
@@ -3079,17 +3161,34 @@
           var bb = gs.banner;
           if (bb.variant === "blocked") {
             Sound.sfx.block();
+            /* text sounds synced to the crumble timeline: glyphs
+               land at 13% of the hold (+55ms stagger), the crack
+               splits them at 27%, the 無効 stamp lands at 44%. */
+            var bd = bb.ms || 1950;
+            Sound.sfx.letters(String(bb.title).length, { base: 0, stagger: 0.055, land: bd * 0.13 / 1000 });
+            Sound.sfx.crack(bd * 0.27 / 1000);
+            Sound.sfx.stampThud(bd * 0.44 / 1000 + 0.06);
             // embers fall as the letters crumble (synced to the crack)
             setTimeout(function () { centerBurst("red", 12, 85); }, Math.round((bb.ms || 1950) * 0.27));
           } else if (bb.variant === "effect" || bb.variant === "guard") {
             centerBurst(bb.tone === "red" ? "red" : "gold", 16, 135);
             spawnRing(window.innerWidth / 2, window.innerHeight * 0.46);
+            /* letter ticks mirror .fx-effect-title .ch: first glyph
+               delayed 90ms, 100ms stagger, impact ≈55% into its
+               0.68s slam (≈0.37s in) — ticked just ahead of it. */
+            Sound.sfx.letters(String(bb.title).length, { base: 0.09, stagger: 0.10, land: 0.30 });
+            Sound.sfx.effectCue(bb.title, bb.variant);
             if (bb.title === "守護") Sound.sfx.block();
             if (bb.title === "交換") Sound.sfx.swap();
           } else if (bb.variant === "dormant") {
-            /* hushed — no burst for an effect that has not woken yet */
+            /* hushed — no burst for an effect that has not woken yet,
+               and its letters only murmur in (soft ticks, low cue) */
+            Sound.sfx.letters(String(bb.title).length, { base: 0.09, stagger: 0.10, land: 0.35, soft: true });
+            Sound.sfx.effectCue(bb.title, "dormant");
           } else {
             centerBurst("gold", 9, 95);
+            Sound.sfx.bannerHit();
+            Sound.sfx.effectCue(bb.title, "");
             if (bb.title === "守護") Sound.sfx.block();
             if (bb.title === "交換") Sound.sfx.swap();
           }
@@ -3102,14 +3201,44 @@
           var pm = gs.modal;
           if (pm.variant === "blocked") {
             Sound.sfx.block();
+            /* same crumble timeline as the banner splash, retimed
+               to the showcase's longer hold (--fx-dur = autoMs) */
+            var pd = pm.autoMs || 3950;
+            Sound.sfx.letters(String(pm.title).length, { base: 0, stagger: 0.055, land: pd * 0.13 / 1000 });
+            Sound.sfx.crack(pd * 0.27 / 1000);
+            Sound.sfx.stampThud(pd * 0.44 / 1000 + 0.06);
             // embers fall as the letters crumble (synced to the crack)
             setTimeout(function () { centerBurst("red", 12, 85); }, Math.round((pm.autoMs || 3950) * 0.27));
           } else if (pm.variant === "effect" || pm.variant === "guard") {
             centerBurst(pm.tone === "red" ? "red" : "gold", 16, 135);
             spawnRing(window.innerWidth / 2, window.innerHeight * 0.46);
+            /* letter ticks mirror .playshow-title .ch: first glyph
+               delayed 160ms, a wide 240ms stagger, impact ≈55% into
+               its 1.15s slam (≈0.63s in) — ticked just ahead of it. */
+            Sound.sfx.letters(String(pm.title).length, { base: 0.16, stagger: 0.24, land: 0.50 });
+            Sound.sfx.effectCue(pm.title, pm.variant);
             if (pm.title === "守護") Sound.sfx.block();
             if (pm.title === "交換") Sound.sfx.swap();
+          } else if (pm.variant === "dormant") {
+            Sound.sfx.letters(String(pm.title).length, { base: 0.16, stagger: 0.24, land: 0.60, soft: true });
+            Sound.sfx.effectCue(pm.title, "dormant");
           }
+        }
+        // reveal modal text effects (each client plays its own; the
+        // outcome cue itself — hit / miss / discard / 転生 — is fired
+        // host-side in setRevealModal): the stamp slams in at 0.25s
+        // delay + ~55% of its 0.45s, and a 捜査 hit's crosshair snaps
+        // shut at 0.25s + ~14–24% of its 3s life.
+        if (gs.modal && gs.modal.kind === "reveal" && gs.modal.id !== seenFx.reveal) {
+          seenFx.reveal = gs.modal.id;
+          Sound.sfx.stampThud(0.48);
+          if (gs.modal.tone === "hit") Sound.sfx.lockOn(0.58);
+        }
+        // every other modal's title simply rises in — give that a
+        // soft entrance sound too (peek / faceoff / watchExec).
+        if (gs.modal && gs.modal.id !== seenFx.modalIn && gs.modal.kind !== "playShow" && gs.modal.kind !== "reveal") {
+          seenFx.modalIn = gs.modal.id;
+          Sound.sfx.modalIn();
         }
         if (gs.turnNote && gs.turnNote.id !== seenFx.turn && ms >= 0) {
           seenFx.turn = gs.turnNote.id;
