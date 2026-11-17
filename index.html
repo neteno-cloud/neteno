@@ -108,8 +108,19 @@
       }
 
       /* ---------- layout ---------- */
-      main.wrap { position: relative; z-index: 10; margin: 0 auto; width: 100%; max-width: 42rem; padding: 0 16px 32px; }
-      header.topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 24px; flex-wrap: wrap; }
+      html { height: 100%; }
+      body { min-height: 100dvh; }
+      main.wrap { position: relative; z-index: 10; margin: 0 auto; width: 100%; max-width: 42rem; padding: 0 16px 32px; min-height: 100dvh; display: flex; flex-direction: column; }
+      #app { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+      header.topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 24px; flex-wrap: wrap; flex-shrink: 0; }
+      /* In-game: the whole table is one viewport — no page scroll.
+         The board itself is a flex column that distributes the
+         opponent zone / table / my zone / log inside 100dvh. */
+      body.in-game { overflow: hidden; }
+      body.in-game main.wrap { height: 100dvh; max-height: 100dvh; overflow: hidden; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); }
+      body.in-game #app { overflow: hidden; }
+      .game-board { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+      .game-board .zone:first-child { margin-top: 14px; }
       .pills { display: flex; align-items: center; gap: 8px; font-size: 12px; flex-wrap: wrap; }
       .pill { border-radius: 999px; border: 1px solid var(--border); background: var(--surface); padding: 6px 12px; display: inline-flex; align-items: center; gap: 4px; }
       .pill .num { font-family: "Cormorant Garamond", serif; font-size: 16px; font-weight: 700; }
@@ -194,6 +205,10 @@
       @keyframes edgeGlow { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }
       @media (prefers-reduced-motion: reduce) {
         .anim-flip,.anim-rise,.anim-deal,.anim-banner,.anim-turnband,.anim-glow,.anim-shake,.anim-autobar,.anim-autobar-fast,.anim-stamp,.anim-slash,.anim-suck,.anim-foil,.foil-text,.anim-flake,.fx-particle,.fx-ring,.fx-edgeglow { animation: none !important; }
+        .fx-effect-bg,.fx-effect-inner,.fx-effect-actor,.fx-effect-rule .ln,.fx-effect-rule .dia,.fx-effect-title .ch,.fx-effect-sub,.fx-effect-ring,.fx-effect-crack,.fx-effect-stamp,.playshow-cardwrap,.playshow-title .ch,.playshow-actor,.playshow-sub { animation: none !important; }
+        .fx-effect-crack { display: none !important; }
+        .fx-effect-stamp { opacity: 1 !important; }
+        .eye-badge { animation: none !important; }
       }
 
       /* ---------- zones & table ---------- */
@@ -206,22 +221,68 @@
       .badge.dim { border-color: var(--border); color: var(--dim); }
       .zone-body { margin-top: 8px; display: flex; align-items: flex-start; gap: 12px; }
       .handrow { display: flex; gap: 8px; }
-      .opp-card { width: 80px; }
+      .opp-card { width: 80px; position: relative; }
       @media (min-width: 640px) { .opp-card { width: 96px; } }
       .known-label { margin-top: 4px; text-align: center; font-size: 10px; letter-spacing: 0.08em; color: var(--accent-bright); }
+      /* eye badge: pinned directly on a card whose identity is known.
+         Gold = you have seen this opponent card; red = the opponent
+         has seen this card of yours. Replaces the old text badge that
+         sat beside the opponent's name. */
+      .eye-badge { position: absolute; top: -9px; right: -9px; z-index: 45; width: 27px; height: 27px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #0d0508; border: 1.5px solid var(--accent-bright); color: var(--accent-bright); box-shadow: 0 2px 8px rgba(0,0,0,0.75), 0 0 10px rgba(230,204,133,0.4); pointer-events: none; animation: eyePulse 2.2s ease-in-out infinite; }
+      .eye-badge svg { width: 16px; height: 16px; display: block; }
+      .eye-badge.seen-by-opp { border-color: var(--red-text); color: var(--red-text); box-shadow: 0 2px 8px rgba(0,0,0,0.75), 0 0 10px rgba(224,101,92,0.45); }
+      @keyframes eyePulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.14); } }
+      .seen-caption { margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--red-text); text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
+      .seen-caption svg { width: 13px; height: 13px; display: block; }
       .no-hand { padding: 32px 0; font-size: 14px; color: var(--dim); margin: 0; }
       .discards { min-width: 0; flex: 1; }
-      .discards .dlabel { font-size: 10px; letter-spacing: 0.14em; color: var(--dim); margin: 0; }
-      .discard-imgs { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 8px; }
-      .discard-item { position: relative; }
-      .discard-item img { height: 56px; width: 36px; border-radius: 3px; border: 1px solid rgba(201,169,98,0.55); object-fit: cover; object-position: top; box-shadow: 0 0 0 1px rgba(0,0,0,0.85); display: block; }
-      .discard-item .dstr { position: absolute; left: 0; top: 0; border-radius: 0 0 4px 0; background: rgba(0,0,0,0.75); padding: 0 3px; font-family: "Cormorant Garamond", serif; font-size: 10px; font-weight: 700; color: var(--accent-bright); }
-      .discard-item .kbadge { position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); white-space: nowrap; border-radius: 999px; padding: 0 4px; font-size: 8px; font-weight: 700; }
-      .discard-item .kbadge.gold { background: var(--accent); color: #000; }
-      .discard-item .kbadge.red { background: var(--crimson); color: #fff; }
-      .discard-item.k-gold img { border-color: var(--accent-bright); }
-      .discard-item.k-red img { border-color: var(--red-text); }
+      .discards .dlabel { font-size: 10px; letter-spacing: 0.14em; color: var(--dim); margin: 0; display: flex; align-items: baseline; gap: 6px; }
+      .discards .dlabel .dcount { color: var(--accent-bright); font-family: "Cormorant Garamond", serif; font-size: 13px; font-weight: 700; letter-spacing: 0; }
+      .discards .dlabel .dopen { margin-left: auto; color: rgba(201,169,98,0.85); letter-spacing: 0.08em; }
+      /* Compact discard strip: every discarded card stays visible at a
+         glance as an identifiable mini card (art + strength number),
+         in chronological order, wrapped to at most two rows. The whole
+         strip is a button — tapping opens the enlarged sheet. */
+      button.discard-pile { display: block; width: 100%; text-align: left; padding: 2px 4px 4px; margin: -2px -4px 0; border-radius: 8px; min-height: 0; }
+      button.discard-pile:active { background: rgba(201,169,98,0.12); }
+      .discard-imgs { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; max-height: 92px; overflow: hidden; align-content: flex-start; }
+      .discard-item { position: relative; flex-shrink: 0; }
+      .discard-item img { height: 42px; width: 27px; border-radius: 3px; border: 1px solid rgba(201,169,98,0.55); object-fit: cover; object-position: top; box-shadow: 0 0 0 1px rgba(0,0,0,0.85); display: block; }
+      .discard-item .dstr { position: absolute; left: 0; top: 0; border-radius: 0 0 4px 0; background: rgba(0,0,0,0.82); padding: 0 3px; font-family: "Cormorant Garamond", serif; font-size: 10px; font-weight: 700; line-height: 1.35; color: var(--accent-bright); }
+      .discard-item .kbadge { position: absolute; bottom: -4px; right: -3px; width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.7); padding: 0; font-size: 0; }
+      .discard-item .kbadge.gold { background: var(--accent-bright); }
+      .discard-item .kbadge.red { background: var(--crimson); }
+      .discard-item.k-gold img { border-color: var(--accent-bright); box-shadow: 0 0 5px rgba(230,204,133,0.5); }
+      .discard-item.k-red img { border-color: var(--red-text); box-shadow: 0 0 5px rgba(224,101,92,0.5); }
       .none-text { font-size: 11px; color: var(--dim); }
+      /* enlarged discard sheet */
+      .discard-sheet-group { margin-top: 16px; }
+      .discard-sheet-group:first-of-type { margin-top: 10px; }
+      .discard-sheet-group .dsg-head { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; }
+      .discard-sheet-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+      .discard-big { width: 62px; text-align: center; }
+      .discard-big .cap { margin-top: 3px; font-size: 9.5px; line-height: 1.45; color: var(--dim); }
+      .discard-big .cap b { display: block; color: var(--text); font-size: 10.5px; }
+      .discard-big .cap .ord-gold { color: var(--accent-bright); font-weight: 700; }
+      .discard-big .cap .ord-red { color: var(--red-text); font-weight: 700; }
+      /* compact tracker bar (少女/貴族 counts) — full notes live in the status sheet */
+      .trackers-compact { margin-top: 8px; width: 100%; display: flex; align-items: center; gap: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); padding: 7px 10px; font-size: 11px; text-align: left; min-height: 36px; }
+      .trackers-compact .tc-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+      .trackers-compact .tc-name { font-family: "Shippori Mincho B1", serif; letter-spacing: 0.06em; }
+      .trackers-compact .tc-next { color: var(--dim); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .trackers-compact .tc-next.hot { color: var(--red-text); font-weight: 700; }
+      .trackers-compact .tc-open { margin-left: auto; color: rgba(201,169,98,0.85); font-size: 10px; letter-spacing: 0.1em; white-space: nowrap; }
+      .status-detail { margin-top: 12px; border-radius: 8px; border: 1px solid var(--border); background: rgba(0,0,0,0.3); padding: 10px 12px; }
+      .status-detail .sd-head { display: flex; align-items: center; justify-content: space-between; margin: 0; font-size: 13px; }
+      .logbox[data-log] { cursor: pointer; flex-shrink: 0; }
+      .logbox[data-log]:active { border-color: rgba(201,169,98,0.6); }
+      .logbox .log-open { float: right; font-size: 10px; letter-spacing: 0.1em; color: rgba(201,169,98,0.85); }
+      .log-full { margin: 10px 0 0; padding: 0; list-style: none; }
+      .log-full li { font-size: 13px; line-height: 1.75; color: rgba(236,229,211,0.88); border-bottom: 1px solid rgba(255,255,255,0.05); padding: 3px 0; }
+      .log-full li.gold { color: var(--accent-bright); }
+      .log-full li.red { color: var(--red-text); }
+      .log-full li.dim { color: var(--dim); }
+      .game-actions { margin-top: 8px; text-align: center; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
 
       .table-box { margin-top: 20px; border-radius: var(--radius); border: 1px solid var(--border); background: rgba(20,16,19,0.7); padding: 12px; }
       .table-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -322,6 +383,112 @@
       .fx-turnband .band-in.theirs { border-color: rgba(168,52,70,0.7); background: linear-gradient(90deg, transparent, rgba(122,28,44,0.45), transparent); color: var(--red-text); }
       .fx-turnband .line { height: 1px; flex: 1; background: currentColor; opacity: 0.4; }
       .fx-turnband .t { font-family: "Shippori Mincho B1", serif; font-size: 24px; font-weight: 700; margin: 0; white-space: nowrap; }
+
+      /* ---------- effect-name splash (効果発動の演出) ----------
+         Every played card announces its effect name full-screen:
+         letters slam in one by one over a darkened, tone-lit stage,
+         framed by gold rules. The "blocked" variant (乙女の守護に
+         阻まれた時) holds the name intact for a beat, cracks it,
+         then each letter blurs, scatters and crumbles away under a
+         「守護 ― 無効」 stamp. Lifecycle keyframes are percentage
+         based and driven by --fx-dur so any display length works. */
+      .fx-effect { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+      .fx-effect.tone-gold { color: #e6cc85; }
+      .fx-effect.tone-red { color: #e0655c; }
+      .fx-effect.tone-white { color: #ddd5ba; }
+      .fx-effect-bg { position: absolute; inset: 0; animation: fxEffectBg var(--fx-dur, 1500ms) ease both; }
+      .fx-effect.tone-gold .fx-effect-bg { background: radial-gradient(ellipse 78% 48% at 50% 50%, rgba(201,169,98,0.22), rgba(0,0,0,0.66) 78%); }
+      .fx-effect.tone-red .fx-effect-bg { background: radial-gradient(ellipse 78% 48% at 50% 50%, rgba(150,32,40,0.34), rgba(0,0,0,0.68) 78%); }
+      .fx-effect.tone-white .fx-effect-bg { background: radial-gradient(ellipse 78% 48% at 50% 50%, rgba(214,204,168,0.14), rgba(0,0,0,0.64) 78%); }
+      @keyframes fxEffectBg { 0% { opacity: 0; } 10% { opacity: 1; } 82% { opacity: 1; } 100% { opacity: 0; } }
+      .fx-effect-inner { position: relative; width: min(92vw, 560px); text-align: center; padding: 26px 16px; animation: fxEffectInner var(--fx-dur, 1500ms) cubic-bezier(0.2,0.8,0.3,1) both; }
+      @keyframes fxEffectInner { 0% { opacity: 0; transform: scale(1.05); } 9% { opacity: 1; transform: scale(1); } 84% { opacity: 1; } 100% { opacity: 0; transform: scale(0.985); } }
+      .fx-effect-actor { margin: 0; font-size: 12.5px; letter-spacing: 0.32em; text-indent: 0.32em; color: rgba(236,229,211,0.92); animation: fxFadeDown 0.5s ease both; white-space: nowrap; }
+      .fx-effect-actor b { font-family: "Shippori Mincho B1", serif; font-size: 14.5px; color: var(--accent-bright); }
+      .fx-effect-actor .fx-effect-roman { font-family: "Cormorant Garamond", serif; font-weight: 700; color: rgba(236,229,211,0.75); letter-spacing: 0.1em; }
+      .fx-effect-rule { display: flex; align-items: center; gap: 10px; width: min(80%, 430px); margin: 15px auto 4px; }
+      .fx-effect-rule .ln { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, currentColor, transparent); opacity: 0.85; transform-origin: center; animation: fxRuleGrow 0.55s 0.08s cubic-bezier(0.2,0.8,0.3,1) both; }
+      .fx-effect-rule .dia { width: 9px; height: 9px; flex-shrink: 0; transform: rotate(45deg); border: 1px solid currentColor; background: rgba(0,0,0,0.45); animation: fxFadeDown 0.4s 0.15s ease both; }
+      @keyframes fxRuleGrow { from { transform: scaleX(0); opacity: 0; } to { transform: scaleX(1); opacity: 0.85; } }
+      @keyframes fxFadeDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes fxFadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      .fx-effect-title { margin: 0; font-family: "Shippori Mincho B1", serif; font-weight: 800; line-height: 1.18; white-space: nowrap; }
+      .fx-effect-title.len-2 { font-size: clamp(62px, 19vw, 104px); letter-spacing: 0.1em; text-indent: 0.1em; }
+      .fx-effect-title.len-3 { font-size: clamp(50px, 15vw, 86px); letter-spacing: 0.08em; text-indent: 0.08em; }
+      .fx-effect-title.len-4 { font-size: clamp(40px, 12.5vw, 72px); letter-spacing: 0.06em; text-indent: 0.06em; }
+      .fx-effect.tone-gold .fx-effect-title { color: #ecd28a; text-shadow: 0 0 28px rgba(201,169,98,0.6), 0 0 6px rgba(230,204,133,0.5), 0 3px 0 rgba(0,0,0,0.45); }
+      .fx-effect.tone-red .fx-effect-title { color: #ef8a80; text-shadow: 0 0 28px rgba(179,55,47,0.65), 0 0 6px rgba(224,101,92,0.5), 0 3px 0 rgba(0,0,0,0.45); }
+      .fx-effect.tone-white .fx-effect-title { color: #f2ecd9; text-shadow: 0 0 26px rgba(220,208,170,0.45), 0 3px 0 rgba(0,0,0,0.45); }
+      .fx-effect-title .ch { display: inline-block; animation: fxLetterIn 0.5s cubic-bezier(0.16,1.2,0.3,1) both; animation-delay: calc(var(--i) * 60ms + 90ms); will-change: transform, filter, opacity; }
+      @keyframes fxLetterIn { 0% { opacity: 0; transform: translateY(30px) scale(1.7); filter: blur(10px); } 60% { opacity: 1; filter: blur(0); } 100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
+      .fx-effect-sub { margin: 13px 0 0; font-size: 13.5px; letter-spacing: 0.14em; color: rgba(236,229,211,0.94); text-shadow: 0 1px 8px rgba(0,0,0,0.8); animation: fxFadeUp 0.5s 0.38s ease both; }
+      /* dormant (少女1枚目 — the effect does not fire yet): hushed, grey, no slam */
+      .fx-effect.dormant .fx-effect-title { color: #a79c82; text-shadow: 0 0 14px rgba(0,0,0,0.55); }
+      .fx-effect.dormant .fx-effect-title .ch { animation-name: fxLetterDormant; animation-duration: 0.7s; }
+      @keyframes fxLetterDormant { from { opacity: 0; transform: translateY(8px); filter: blur(5px); } to { opacity: 0.85; transform: translateY(0); filter: blur(0.4px); } }
+      .fx-effect.dormant .fx-effect-sub { color: var(--dim); }
+      /* guard (乙女の守護が立つ): a shield ring breathes out behind the name */
+      .fx-effect-ring { position: absolute; left: 50%; top: 50%; width: 220px; height: 220px; margin: -110px 0 0 -110px; border-radius: 50%; border: 1px solid rgba(236,210,138,0.9); box-shadow: inset 0 0 34px rgba(201,169,98,0.22); pointer-events: none; animation: fxGuardRing var(--fx-dur, 1550ms) ease-out both; }
+      @keyframes fxGuardRing { 0% { transform: scale(0.5); opacity: 0; } 30% { opacity: 0.95; } 100% { transform: scale(1.3); opacity: 0; } }
+      /* blocked (守護に阻まれた): intact → tremble → crack → letters blur, scatter and crumble down */
+      .fx-effect.blocked .fx-effect-title .ch { animation: fxCrumble var(--fx-dur, 1950ms) cubic-bezier(0.3,0.6,0.6,1) both; animation-delay: calc(var(--i) * 55ms); }
+      @keyframes fxCrumble {
+        0% { opacity: 0; transform: translateY(18px) scale(1.35); filter: blur(6px); }
+        9% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+        23% { opacity: 1; transform: translateX(0) rotate(0deg); filter: blur(0); }
+        26% { transform: translateX(-2px) rotate(-1deg); }
+        29% { transform: translateX(2px) rotate(1deg); }
+        32% { transform: translateX(-1px) rotate(0deg); }
+        40% { opacity: 1; filter: blur(0.6px); }
+        76% { opacity: 0; transform: translate(var(--fx, 0px), 58px) rotate(var(--fr, 0deg)) scale(0.92); filter: blur(7px); }
+        100% { opacity: 0; transform: translate(var(--fx, 0px), 74px) rotate(var(--fr, 0deg)) scale(0.9); filter: blur(11px); }
+      }
+      .fx-effect-crack { position: absolute; left: 4%; right: 4%; top: 47%; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, rgba(242,236,217,0.95) 30%, rgba(224,101,92,0.95) 55%, transparent); box-shadow: 0 0 12px rgba(224,101,92,0.85); opacity: 0; transform: rotate(-7deg) scaleX(0); animation: fxCrack 0.5s ease both; animation-delay: calc(var(--fx-dur, 1950ms) * 0.27); pointer-events: none; }
+      @keyframes fxCrack { 0% { transform: rotate(-7deg) scaleX(0); opacity: 0; } 25% { opacity: 1; } 100% { transform: rotate(-7deg) scaleX(1); opacity: 0; } }
+      .fx-effect-stamp { display: inline-block; margin-top: 15px; border: 2px solid var(--accent-bright); border-radius: 4px; background: rgba(0,0,0,0.6); padding: 3px 14px; font-family: "Shippori Mincho B1", serif; font-size: 15px; font-weight: 700; letter-spacing: 0.22em; text-indent: 0.22em; color: var(--accent-bright); opacity: 0; transform: rotate(-8deg); animation: fxStampIn 0.35s cubic-bezier(0.2,0.9,0.3,1.4) both; animation-delay: calc(var(--fx-dur, 1950ms) * 0.44); }
+      @keyframes fxStampIn { from { opacity: 0; transform: rotate(-8deg) scale(2.1); } to { opacity: 1; transform: rotate(-8deg) scale(1); } }
+      .fx-effect.blocked .fx-effect-sub { animation-delay: 0.3s; }
+
+      /* ---------- play showcase (スワイプ直後のカード拡大＋効果) ----------
+         The tap-to-confirm feature modal is gone: the moment a card is
+         played it zooms up large together with its effect name, holds
+         for the splash's base length + 2s, and closes by itself — no
+         button, no confirmation. The blocked variant reuses the
+         crumble keyframes so the effect name cracks and falls apart
+         over the enlarged card, stamped 守護 ― 無効. */
+      /* play showcase container: the played card and its effect name
+         sit on a gold-framed panel over a dark veil, so the lettering
+         stays readable against the busy table behind it. */
+      .overlay.playshow-wrap { background: rgba(0,0,0,0.78); }
+      .playshow { width: 100%; max-width: 24rem; max-height: 92dvh; overflow-y: auto; text-align: center; position: relative; padding: 20px; border-radius: var(--radius); border: 1px solid rgba(201,169,98,0.7); background: var(--surface); box-shadow: 0 24px 60px rgba(0,0,0,0.7); }
+      .playshow.tone-gold { color: #e6cc85; }
+      .playshow.tone-red { color: #e0655c; }
+      .playshow.tone-white { color: #ddd5ba; }
+      .playshow-actor { margin: 0; font-size: 12.5px; letter-spacing: 0.3em; text-indent: 0.3em; color: rgba(236,229,211,0.92); animation: fxFadeDown 0.5s ease both; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .playshow-actor b { font-family: "Shippori Mincho B1", serif; font-size: 14.5px; color: var(--accent-bright); }
+      .playshow-actor .fx-effect-roman { font-family: "Cormorant Garamond", serif; font-weight: 700; color: rgba(236,229,211,0.75); letter-spacing: 0.1em; }
+      .playshow-stage { position: relative; margin: 16px auto 0; width: clamp(122px, 36vw, 168px); }
+      .playshow-stage::before { content: ""; position: absolute; inset: -26px -38px; border-radius: 50%; background: radial-gradient(ellipse at center, rgba(201,169,98,0.28), rgba(0,0,0,0) 68%); pointer-events: none; }
+      .playshow.tone-red .playshow-stage::before { background: radial-gradient(ellipse at center, rgba(150,32,40,0.4), rgba(0,0,0,0) 68%); }
+      .playshow-cardwrap { position: relative; animation: playCardZoom 0.65s cubic-bezier(0.2,0.9,0.3,1.12) both; will-change: transform, opacity; }
+      @keyframes playCardZoom { 0% { opacity: 0; transform: translateY(54px) scale(0.5) rotate(-2.5deg); } 55% { opacity: 1; } 78% { transform: translateY(-6px) scale(1.045) rotate(0.5deg); } 100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); } }
+      .playshow.blocked .playshow-cardwrap { animation: playCardZoom 0.65s cubic-bezier(0.2,0.9,0.3,1.12) both, playCardDim var(--fx-dur, 3950ms) ease both; }
+      @keyframes playCardDim { 0%, 27% { filter: none; } 45% { filter: saturate(0.45) brightness(0.78); } 100% { filter: saturate(0.3) brightness(0.66); } }
+      .playshow-titlewrap { position: relative; }
+      .playshow-title { margin: 0; font-family: "Shippori Mincho B1", serif; font-weight: 800; line-height: 1.18; white-space: nowrap; text-align: center; }
+      .playshow-title.len-2 { font-size: clamp(56px, 17vw, 96px); letter-spacing: 0.1em; text-indent: 0.1em; }
+      .playshow-title.len-3 { font-size: clamp(45px, 13.5vw, 78px); letter-spacing: 0.08em; text-indent: 0.08em; }
+      .playshow-title.len-4 { font-size: clamp(36px, 11.5vw, 64px); letter-spacing: 0.06em; text-indent: 0.06em; }
+      .playshow.tone-gold .playshow-title { color: #ecd28a; text-shadow: 0 0 28px rgba(201,169,98,0.6), 0 0 6px rgba(230,204,133,0.5), 0 3px 0 rgba(0,0,0,0.45); }
+      .playshow.tone-red .playshow-title { color: #ef8a80; text-shadow: 0 0 28px rgba(179,55,47,0.65), 0 0 6px rgba(224,101,92,0.5), 0 3px 0 rgba(0,0,0,0.45); }
+      .playshow.tone-white .playshow-title { color: #f2ecd9; text-shadow: 0 0 26px rgba(220,208,170,0.45), 0 3px 0 rgba(0,0,0,0.45); }
+      .playshow-title .ch { display: inline-block; animation: fxLetterIn 0.5s cubic-bezier(0.16,1.2,0.3,1) both; animation-delay: calc(var(--i) * 60ms + 90ms); will-change: transform, filter, opacity; }
+      .playshow.dormant .playshow-title { color: #a79c82; text-shadow: 0 0 14px rgba(0,0,0,0.55); }
+      .playshow.dormant .playshow-title .ch { animation-name: fxLetterDormant; animation-duration: 0.7s; }
+      .playshow.blocked .playshow-title .ch { animation: fxCrumble var(--fx-dur, 3950ms) cubic-bezier(0.3,0.6,0.6,1) both; animation-delay: calc(var(--i) * 55ms); }
+      .playshow-sub { margin: 12px 0 0; text-align: center; font-size: 13.5px; letter-spacing: 0.12em; color: rgba(236,229,211,0.94); animation: fxFadeUp 0.5s 0.38s ease both; }
+      .playshow.dormant .playshow-sub { color: var(--dim); }
+      .playshow.blocked .playshow-sub { animation-delay: 0.3s; }
 
       /* ---------- landing / waiting ---------- */
       .landing { margin-top: 16px; text-align: center; }
@@ -449,35 +616,103 @@
       .center-note { text-align: center; font-size: 13px; color: var(--dim); line-height: 1.8; }
       .hidden { display: none !important; }
 
-      /* ---------- small-phone fit & tap targets ---------- */
-      @media (max-width: 560px) {
-        main.wrap { padding: 0 12px 28px; }
-        header.topbar { padding-top: 18px; gap: 6px; }
-        .pill { padding: 5px 10px; font-size: 11px; }
-        .pill .num { font-size: 15px; }
-        .chip-btn { min-height: 40px; padding: 0 11px; font-size: 11.5px; }
-        .kv h1 { font-size: 40px; letter-spacing: 0.22em; text-indent: 0.22em; }
-        .kv .kv-sub { font-size: 12px; letter-spacing: 0.4em; text-indent: 0.4em; }
-        .landing .lead { font-size: 13.5px; }
-        .mode-title { font-size: 20px; }
-        .mode-cta { font-size: 13.5px; letter-spacing: 0.12em; text-indent: 0.12em; }
-        .roomcode { font-size: 34px; }
-        .wait-player { min-width: 0; flex: 1; padding: 10px 8px; }
-        .fx-banner .b-title { font-size: 36px; }
-        .fx-turnband .t { font-size: 20px; }
-        .guess-grid { gap: 5px; }
-        .guess-btn { padding: 7px 2px; }
-        .guess-btn .gn { font-size: 10.5px; }
-        .tracker { padding: 7px 8px; font-size: 10.5px; }
-        .handcard-wrap { width: 124px; }
-        .pick-btn { width: 88px; }
-        .modal-card { padding: 16px 14px; }
-        .result-title { font-size: 30px; }
+
+      /* ---------- small-phone: fit one screen, no scroll ---------- */
+      @media (max-width: 640px) {
+        main.wrap { padding: 0 10px 10px; }
+        body.in-game main.wrap { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6px); }
+        header.topbar { padding-top: 10px; gap: 6px; flex-wrap: nowrap; }
+        .pills { gap: 5px; flex-wrap: nowrap; overflow: hidden; }
+        .pill { padding: 4px 8px; font-size: 10.5px; white-space: nowrap; }
+        .pill .num { font-size: 14px; }
+        .topbtns { gap: 5px; flex-shrink: 0; }
+        .chip-btn { min-height: 34px; padding: 0 9px; font-size: 11px; }
+        /* landing compacted so it also fits (or nearly fits) one screen */
+        .landing { margin-top: 8px; }
+        .kv img { aspect-ratio: 2.7/1; }
+        .kv h1 { font-size: 34px; letter-spacing: 0.2em; text-indent: 0.2em; }
+        .kv .kv-sub { font-size: 11px; letter-spacing: 0.36em; text-indent: 0.36em; }
+        .kv .kv-title { padding: 30px 8px 7px; }
+        .landing .lead { margin-top: 9px; font-size: 12.5px; line-height: 1.6; }
+        .btn-howto { margin-top: 10px; min-height: 38px; font-size: 12px; padding: 0 16px; }
+        .name-field { margin-top: 12px; }
+        .name-field label { margin-bottom: 4px; font-size: 10px; }
+        .txt-input { min-height: 42px; }
+        .mode-head { margin-top: 14px; }
+        .mode-grid { margin-top: 9px; gap: 9px; }
+        .mode-card { padding: 11px 12px 12px; }
+        .mode-title { font-size: 18px; margin-top: 3px; }
+        .mode-desc { margin-top: 4px; font-size: 11.5px; line-height: 1.55; }
+        .mode-cta { margin-top: 9px; min-height: 40px; font-size: 13px; letter-spacing: 0.1em; text-indent: 0.1em; }
+        .mode-sub { margin-top: 10px; }
+        .join-form { margin-top: 10px; }
+        .landing .fine { margin-top: 7px; font-size: 11px; line-height: 1.55; }
+        .setting-box { margin-top: 12px; padding: 10px 12px; }
+        .roomcode { font-size: 32px; }
+        .wait-players { margin-top: 10px; gap: 8px; }
+        .wait-player { min-width: 0; flex: 1; padding: 8px 6px; }
+        .btn-start { margin-top: 14px; min-height: 44px; padding: 0 22px; font-size: 16px; letter-spacing: 0.18em; text-indent: 0.18em; }
+        /* --- game board: everything sized from viewport height --- */
+        .game-board { gap: 0; justify-content: flex-start; }
+        .game-board .zone:first-child { margin-top: 6px; }
+        .zone { margin-top: 6px; }
+        .zone-name { font-size: 12.5px; }
+        .zone-name .sub { display: none; }
+        .badge { margin-left: 5px; padding: 1px 6px; font-size: 10px; }
+        .zone-body { margin-top: 4px; gap: 8px; align-items: flex-start; }
+        .opp-card { width: min(19vw, 8.6dvh); }
+        .known-label { margin-top: 2px; font-size: 9px; }
+        .no-hand { padding: 10px 0; font-size: 12px; }
+        .discard-imgs { max-height: 84px; gap: 3px; margin-top: 3px; }
+        .discard-item img { width: 24px; height: 37px; }
+        .table-box { margin-top: 6px; padding: 7px 8px; }
+        .mini-slot { width: 29px; }
+        .mini-slot .cap { font-size: 8.5px; margin-top: 1px; }
+        .deck-pair { gap: 7px; }
+        .spot { width: min(14.5vw, 7dvh); }
+        .spot .cap { font-size: 8.5px; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .spots { gap: 8px; }
+        .vs { font-size: 16px; padding-top: 22px; }
+        .trackers-compact { margin-top: 6px; padding: 5px 8px; min-height: 32px; font-size: 10.5px; gap: 7px; }
+        .panel { margin-top: 6px; padding: 8px; }
+        .panel .p-title { font-size: 12.5px; line-height: 1.5; }
+        .guess-grid { gap: 5px; margin-top: 6px; }
+        .guess-btn { padding: 5px 2px; min-height: 38px; }
+        .guess-btn .gr { font-size: 14px; }
+        .guess-btn .gn { font-size: 10px; }
+        .pick-row { margin-top: 6px; gap: 8px; }
+        .pick-btn { width: min(23vw, 10.5dvh); }
+        .myhand { margin-top: 5px; gap: 9px; min-height: 0; }
+        .handcard-wrap { width: min(28vw, 13.2dvh); }
+        .game-board.has-panel .handcard-wrap { width: min(23vw, 10.2dvh); }
+        .game-board.has-panel .opp-card { width: min(16vw, 7.4dvh); }
+        .handcard-wrap > .hint, .handcard .hint { font-size: 9px; margin-top: 2px; }
+        .status-line { margin-top: 4px; font-size: 11px; line-height: 1.45; }
+        .swipe-note { display: none; }
+        .logbox { margin-top: 6px; padding: 5px 9px; flex-shrink: 0; }
+        .logbox li { font-size: 11px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .game-actions { margin-top: 6px; }
+        .game-actions .chip-btn { min-height: 30px; font-size: 10.5px; }
+        .fab-cards { display: none; } /* header already has カード一覧 */
+        .fx-banner .b-title { font-size: 34px; }
+        .fx-effect-actor { font-size: 11px; letter-spacing: 0.2em; text-indent: 0.2em; }
+        .fx-effect-sub { font-size: 12px; letter-spacing: 0.1em; }
+        .playshow-actor { font-size: 11px; letter-spacing: 0.18em; text-indent: 0.18em; }
+        .playshow-stage { width: min(33vw, 19dvh); margin-top: 10px; }
+        .playshow-sub { font-size: 12px; letter-spacing: 0.08em; }
+        .fx-turnband .t { font-size: 19px; }
+        .modal-card { padding: 15px 13px; max-height: 92dvh; }
+        .result-title { font-size: 29px; }
         .replay-nav { grid-template-columns: repeat(2, 1fr); }
-        .fab-cards { right: 12px; padding: 10px 14px; }
-        .showdown-row .sd, .faceoff-row .fo { width: 88px; }
-        .zone-name { font-size: 13px; }
-        .opp-card { width: 72px; }
+        .showdown-row .sd, .faceoff-row .fo { width: 84px; }
+        .discard-big { width: 56px; }
+      }
+      @media (max-width: 640px) and (max-height: 720px) {
+        .handcard-wrap { width: min(26vw, 12dvh); }
+        .game-board.has-panel .handcard-wrap { width: min(21vw, 9.4dvh); }
+        .opp-card { width: min(17vw, 7.8dvh); }
+        .kv img { aspect-ratio: 3.1/1; }
+        .landing .lead { display: none; }
       }
     </style>
   </head>
@@ -1065,7 +1300,7 @@
       var inspectCard = null;      // hand card being viewed (local)
       var replayIdx = null;
       var soundOff = false;
-      var seenFx = { banner: 0, turn: 0, flash: 0, result: "" };
+      var seenFx = { banner: 0, turn: 0, flash: 0, result: "", playShow: 0 };
       var dragging = false;
 
       // ---------- render de-duplication (anti "reload" flicker) ----------
@@ -1099,7 +1334,8 @@
         return sigStr({ inRoom: inRoom ? 1 : 0, scr: gs.screen, score: gs.score, names: gs.names, mm: gs.memoryMode, ms: mySeat(), off: soundOff ? 1 : 0 });
       }
       function fxSig() {
-        return sigStr({ f: gs.flash, b: gs.banner, t: gs.turnNote, r: gs.result, mn: gs.matchNo, ms: mySeat() });
+        return sigStr({ f: gs.flash, b: gs.banner, t: gs.turnNote, r: gs.result, mn: gs.matchNo, ms: mySeat(),
+          ps: gs.modal && gs.modal.kind === "playShow" ? gs.modal.id : 0 });
       }
       function appSig() {
         if (!inRoom) {
@@ -1126,7 +1362,8 @@
           scr: gs.screen, res: gs.result, sd: gs.showdown, score: gs.score, names: gs.names,
           hist: replayIdx !== null ? gs.history : gs.history.length, ri: replayIdx,
           left: (oppLeft || hostGone) ? 1 : 0, inRoom: inRoom ? 1 : 0, ms: mySeat(),
-          phase: gs.phase, turn: gs.turn, disc: gs.discards, matchNo: gs.matchNo });
+          phase: gs.phase, turn: gs.turn, disc: gs.discards, log: gs.log, deck: gs.deck.length,
+          tensei: gs.tensei ? 1 : 0, knightOrder: gs.knightOrder, matchNo: gs.matchNo });
       }
       function fabSig() {
         return sigStr({ inRoom: inRoom ? 1 : 0, scr: gs.screen });
@@ -1209,11 +1446,14 @@
       function hLog(text, tone) {
         G.log = G.log.slice(-29).concat([{ id: logId++, text: text, tone: tone || "plain" }]);
       }
-      function hBanner(title, sub, tone, ms) {
-        if (title === "守護") Sound.sfx.block();
+      function hBanner(title, sub, tone, ms, opts) {
+        opts = opts || {};
+        if (title === "守護" || opts.variant === "blocked") Sound.sfx.block();
         if (title === "交換") Sound.sfx.swap();
         var id = Date.now() + Math.random();
-        G.banner = { id: id, title: title, sub: sub || "", tone: tone };
+        G.banner = { id: id, title: title, sub: sub || "", tone: tone,
+          variant: opts.variant || null, role: opts.role || "", roman: opts.roman || "",
+          actor: opts.actor || "", ms: ms || 1150 };
         publish();
         setTimeout(function () {
           if (G && G.banner && G.banner.id === id) { G.banner = null; publish(); }
@@ -1412,9 +1652,64 @@
         if (s === 6) return knightsBefore >= 1 ? "場に貴族が1枚出ている ― 2枚目なので「対決」が発動する" : "場に貴族はまだいない ― 1枚目は「対面」（見せ合いのみ）";
         return "";
       }
-      async function showFeature(card, sideSeat, girlsBefore, knightsBefore, targetGuarded, g) {
-        setModal({ kind: "feature", card: card, side: sideSeat, note: featureNote(card, girlsBefore, knightsBefore, targetGuarded), closer: "any" }, null, 10000);
+      /* Swipe-to-play showcase: the instant a card is played it zooms
+         up large together with its effect name — no confirmation tap
+         (the old feature modal is gone). It holds for the effect
+         splash's base length + 2000ms and closes by itself; both
+         screens see the same modal because it rides the shared state.
+         When the opponent's 守護 will block the effect, the showcase
+         itself is the blocked variant (the name crumbles over the
+         enlarged card, stamped 守護 ― 無効) and resolveEffect's
+         guardedBlock then stays silent. Returns true when the
+         blocked variant played. */
+      async function showPlayShowcase(seat, card, girlsBefore, knightsBefore, g) {
+        var s = card.strength;
+        var opp = 1 - seat;
+        var blockable = s === 2 || s === 3 || s === 5 || s === 6 || s === 8 || s === 9 || (s === 1 && girlsBefore >= 1);
+        var blocked = blockable && !!G.guard[opp];
+        var def = defOf(s);
+        var info = effectSplashInfo(seat, card, girlsBefore, knightsBefore);
+        var title, tone, variant, sub, ms;
+        if (blocked) {
+          title = info ? info.title : def.effectName;
+          tone = info ? info.tone : "white";
+          variant = "blocked";
+          sub = nm(opp) + " の乙女の守護が、効果を砕いた";
+          ms = 3950; /* crumble splash 1950 + 2000 */
+          hLog(title + "は " + nm(opp) + " の守護で無効化された", "dim");
+        } else {
+          if (!info) return false;
+          title = info.title; tone = info.tone; variant = info.variant; sub = info.sub;
+          ms = info.ms + 2000;
+        }
+        setModal({ kind: "playShow", card: card, side: seat, title: title, tone: tone, variant: variant, sub: sub,
+          note: featureNote(card, girlsBefore, knightsBefore, G.guard[opp]), closer: "any" }, null, ms);
         await waitForModalClose(g);
+        return blocked;
+      }
+      /* Effect-name splash data for every playable card. The title is
+         the effect that actually fires: 貴族 splits into 対面／対決 and
+         少女's 革命 only wakes on the second copy (the first plays as
+         the hushed "dormant" variant). 英雄 never appears here — it
+         cannot be played from hand. */
+      function effectSplashInfo(seat, card, girlsBefore, knightsBefore) {
+        var who = nm(seat);
+        switch (card.strength) {
+          case 1: return girlsBefore >= 1
+            ? { title: "革命", tone: "red", variant: "effect", sub: "少女の革命 ― 公開処刑が目覚める", ms: 1550 }
+            : { title: "革命", tone: "white", variant: "dormant", sub: "少女 1枚目 ― 革命はまだ静かに眠っている", ms: 1300 };
+          case 2: return { title: "捜査", tone: "gold", variant: "effect", sub: who + " が相手の手札を言い当てる", ms: 1500 };
+          case 3: return { title: "透視", tone: "gold", variant: "effect", sub: who + " が相手の手札をのぞき見る", ms: 1500 };
+          case 4: return { title: "守護", tone: "white", variant: "guard", sub: who + " は次の自分の手番まで効果を受けない", ms: 1550 };
+          case 5: return { title: "疫病", tone: "red", variant: "effect", sub: "裏向きの2枚から、捨てさせる1枚を選ぶ", ms: 1550 };
+          case 6: return knightsBefore >= 1
+            ? { title: "対決", tone: "red", variant: "effect", sub: "貴族 2枚目 ― 手札の強さで雌雄を決する", ms: 1550 }
+            : { title: "対面", tone: "white", variant: "effect", sub: "貴族 1枚目 ― お互いの手札を見せ合う", ms: 1500 };
+          case 7: return { title: "選択", tone: "gold", variant: "effect", sub: "次の自分の手番、山札の3枚から1枚を選ぶ", ms: 1500 };
+          case 8: return { title: "交換", tone: "gold", variant: "effect", sub: "お互いの手札がそっくり入れ替わる", ms: 1550 };
+          case 9: return { title: "公開処刑", tone: "red", variant: "effect", sub: "公開された2枚から、捨てさせる1枚を選ぶ", ms: 1600 };
+        }
+        return null;
       }
       function setRevealModal(reveal, onDone) {
         setModal(Object.assign({ kind: "reveal", closer: "any" }, reveal), onDone, 4500);
@@ -1491,7 +1786,8 @@
           G.sageDraw = drawn;
           G.phase = "sagePick";
           hAnnounceTurn(seat);
-          hBanner("選択", "賢者の導き ― " + nm(seat) + " が " + drawn.length + "枚から1枚を選ぶ", "gold", 1300);
+          hBanner("選択", "賢者の導き ― " + nm(seat) + " が " + drawn.length + "枚から1枚を選ぶ", "gold", 1500,
+            { variant: "effect", role: "賢者", roman: "VII", actor: nm(seat) });
           hLog(nm(seat) + " の賢者の効果：3枚引いて1枚選ぶ", "gold");
           recordStep(nm(seat) + "の手番 ― 賢者の選択");
           publish();
@@ -1552,9 +1848,9 @@
         G.phase = "busy";
         hLog(nm(seat) + " は " + def.role + "（" + def.effectName + "）を出した", "plain");
         publish();
-        await showFeature(card, seat, girlsBefore, knightsBefore, G.guard[1 - seat], g);
+        var blockShown = await showPlayShowcase(seat, card, girlsBefore, knightsBefore, g);
         if (g !== flowGen) return;
-        await resolveEffect(seat, card, girlsBefore, knightsBefore, g);
+        await resolveEffect(seat, card, girlsBefore, knightsBefore, g, blockShown);
         if (g !== flowGen) return;
         if (!G.result) recordStep(nm(seat) + " ― " + def.role + "（" + def.effectName + "）を出した");
         hostBusy = false;
@@ -1562,20 +1858,27 @@
         if (!G.result) endTurn(g);
       }
 
-      async function resolveEffect(seat, card, girlsBefore, knightsBefore, g) {
+      async function resolveEffect(seat, card, girlsBefore, knightsBefore, g, blockShown) {
         var opp = 1 - seat;
         var oppCard = function () { return G.hands[opp][0]; };
         var myCard = function () { return G.hands[seat][0]; };
-        var guardedBlock = async function (what) {
-          hBanner("守護", "乙女の守護が" + what + "を阻んだ", "white");
+        /* 守護ブロック: the play showcase already performed the
+           crumbling blocked variant (and logged the negation), so
+           this stays silent then. The banner path below is only a
+           fallback for a block that was not known at showcase time. */
+        var guardedBlock = async function (what, tone) {
+          if (blockShown) { publish(); await sleep(400); return; }
+          var defB = defOf(card.strength);
+          hBanner(what, nm(opp) + " の乙女の守護が、効果を砕いた", tone || "white", 3950,
+            { variant: "blocked", role: defB.role, roman: defB.roman, actor: nm(seat) });
           hLog(what + "は " + nm(opp) + " の守護で無効化された", "dim");
           publish();
-          await sleep(800);
+          await sleep(3450);
         };
         switch (card.strength) {
           case 1: {
             if (girlsBefore >= 1) {
-              if (G.guard[opp]) { await guardedBlock("革命"); return; }
+              if (G.guard[opp]) { await guardedBlock("革命", "red"); return; }
               if (G.deck.length === 0) { showdown("少女の革命は山札が尽きて発動しなかった。"); publish(); return; }
               var drawn1 = G.deck.pop();
               if (drawn1) G.hands[opp] = G.hands[opp].concat([drawn1]);
@@ -1594,14 +1897,14 @@
             return;
           }
           case 2: {
-            if (G.guard[opp]) { await guardedBlock("捜査"); return; }
+            if (G.guard[opp]) { await guardedBlock("捜査", "gold"); return; }
             G.phase = "guess";
             publish();
             await waitForPhaseChange(g);
             return;
           }
           case 3: {
-            if (G.guard[opp]) { await guardedBlock("透視"); return; }
+            if (G.guard[opp]) { await guardedBlock("透視", "gold"); return; }
             var target3 = oppCard();
             if (target3) {
               markKnown(seat, target3);
@@ -1619,7 +1922,7 @@
             return;
           }
           case 5: {
-            if (G.guard[opp]) { await guardedBlock("疫病"); return; }
+            if (G.guard[opp]) { await guardedBlock("疫病", "red"); return; }
             if (G.deck.length === 0) { showdown("死神の疫病は山札が尽きて発動しなかった。"); publish(); return; }
             var drawn5 = G.deck.pop();
             if (drawn5) G.hands[opp] = G.hands[opp].concat([drawn5]);
@@ -1637,7 +1940,7 @@
           case 6: {
             var mine6 = myCard(), theirs6 = oppCard();
             if (!mine6 || !theirs6) return;
-            if (G.guard[opp]) { await guardedBlock(knightsBefore === 0 ? "対面" : "対決"); return; }
+            if (G.guard[opp]) { await guardedBlock(knightsBefore === 0 ? "対面" : "対決", knightsBefore === 0 ? "white" : "red"); return; }
             if (knightsBefore === 0) {
               markKnown(seat, theirs6);
               markKnown(opp, mine6);
@@ -1672,7 +1975,7 @@
             return;
           }
           case 8: {
-            if (G.guard[opp]) { await guardedBlock("交換"); return; }
+            if (G.guard[opp]) { await guardedBlock("交換", "gold"); return; }
             var mine8 = myCard(), theirs8 = oppCard();
             if (mine8 && theirs8) {
               G.hands[seat] = [theirs8];
@@ -1687,7 +1990,7 @@
             return;
           }
           case 9: {
-            if (G.guard[opp]) { await guardedBlock("公開処刑"); return; }
+            if (G.guard[opp]) { await guardedBlock("公開処刑", "red"); return; }
             if (G.deck.length === 0) { showdown("皇帝の公開処刑は山札が尽きて発動しなかった。"); publish(); return; }
             var drawn9 = G.deck.pop();
             if (drawn9) G.hands[opp] = G.hands[opp].concat([drawn9]);
@@ -1853,7 +2156,7 @@
       // ---------- CPU opponent (solo mode) ----------
       // The CPU plays through the very same host handlers a remote
       // guest's RPC would call (hostPlayCard / hostGuess / …), so the
-      // feature spotlight, reveals, banners, turn bands, sounds,
+      // play showcase, reveals, banners, turn bands, sounds,
       // result and replay all come from the shared layers above —
       // nothing about the presentation differs between modes.
       function cpuKnownOpp() { return G.knownBy[CPU_SEAT]; }
@@ -2342,6 +2645,12 @@
           '<span class="' + c + ' tl"></span><span class="' + c + ' tr"></span>' +
           '<span class="' + c + ' bl"></span><span class="' + c + ' br"></span></span>';
       }
+      function eyeSvg() {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+      }
+      function eyeBadge(cls, label) {
+        return '<span class="eye-badge ' + cls + '" role="img" aria-label="' + esc(label) + '">' + eyeSvg() + "</span>";
+      }
       function cardFace(card, opts) {
         opts = opts || {};
         var def = defOf(card.strength);
@@ -2375,24 +2684,52 @@
           : '<div class="empty-slot">―</div>';
         return '<div class="spot">' + inner + '<p class="cap">' + esc(label) + "</p></div>";
       }
-      function discardRow(label, cards, knightOrder) {
-        var h = '<div class="discards"><p class="dlabel">' + esc(label) + '</p><div class="discard-imgs">';
-        if (!cards.length) h += '<span class="none-text">なし</span>';
+      /* Compact discard strip for the board: every discarded card is
+         shown as an identifiable mini card (art + strength), oldest
+         first, wrapping to at most two rows. When `seat` is a number
+         (live board) the whole strip is a button that opens the one
+         shared enlarged discard sheet (both players, chronological);
+         in the replay board seat is null and it renders as a plain strip. */
+      function discardRow(label, cards, knightOrder, seat) {
+        var thumbs = "";
+        if (!cards.length) thumbs = '<span class="none-text">なし</span>';
         cards.forEach(function (c) {
           var def = defOf(c.strength);
           var badge = "", cls = "";
           if (c.strength === 6) {
             var order = knightOrder.indexOf(c.uid);
             if (order === 0) { badge = "貴族1枚目・対面"; cls = "k-gold"; }
-            else { badge = "貴族2枚目・対決"; cls = "k-red"; }
+            else if (order > 0) { badge = "貴族2枚目・対決"; cls = "k-red"; }
           }
-          h += '<div class="discard-item ' + cls + '" title="' + esc(def.role) + "（" + esc(def.effectName) + "）" + '">' +
+          thumbs += '<span class="discard-item ' + cls + '" title="' + esc(def.role) + "（" + esc(def.effectName) + "）" + (badge ? " ― " + badge : "") + '">' +
             '<img src="' + def.img + '" alt="' + esc(def.role) + '" draggable="false" />' +
             '<span class="dstr">' + def.strength + "</span>" +
             (badge ? '<span class="kbadge ' + (badge.indexOf("対面") >= 0 ? "gold" : "red") + '">' + badge + "</span>" : "") +
-            "</div>";
+            "</span>";
         });
-        return h + "</div></div>";
+        if (typeof seat === "number") {
+          return '<div class="discards"><button type="button" class="discard-pile" data-discards aria-label="' + esc(label) + " ― タップで両プレイヤーの捨て札一覧を開く\">" +
+            '<span class="dlabel">' + esc(label) + '<span class="dcount">' + cards.length + '枚</span><span class="dopen">拡大 ›</span></span>' +
+            '<span class="discard-imgs">' + thumbs + "</span></button></div>";
+        }
+        return '<div class="discards"><p class="dlabel">' + esc(label) + '<span class="dcount">' + cards.length + '枚</span></p><div class="discard-imgs">' + thumbs + "</div></div>";
+      }
+      /* One player's discards as enlarged cards, chronological, for the sheet. */
+      function discardBigList(cards, knightOrder) {
+        if (!cards.length) return '<p class="none-text" style="font-size:12px">まだ捨て札はありません</p>';
+        var h = '<div class="discard-sheet-grid">';
+        cards.forEach(function (c, i) {
+          var def = defOf(c.strength);
+          var ord = "";
+          if (c.strength === 6) {
+            var o = knightOrder.indexOf(c.uid);
+            if (o === 0) ord = '<span class="ord-gold">貴族1枚目・対面</span>';
+            else if (o > 0) ord = '<span class="ord-red">貴族2枚目・対決</span>';
+          }
+          h += '<div class="discard-big">' + cardFace(c, { small: true }) +
+            '<p class="cap"><b>' + (i + 1) + "枚目 ― " + def.strength + " " + esc(def.role) + "</b>" + (ord || esc(def.effectName)) + "</p></div>";
+        });
+        return h + "</div>";
       }
       function pip(filled) { return '<span class="pip' + (filled ? " filled" : "") + '"></span>'; }
       function medalSvg() {
@@ -2495,6 +2832,17 @@
       function centerBurst(color, count, power) {
         spawnParticles(window.innerWidth / 2, window.innerHeight * 0.44, color, count, power || 130);
       }
+      /* Split an effect name into per-letter spans for the splash.
+         --fx / --fr are the deterministic scatter offsets the blocked
+         (crumble) animation falls with; --i staggers every letter. */
+      function effectSpans(title) {
+        var chars = String(title).split("");
+        return chars.map(function (ch, i) {
+          var dx = ((i * 41 + chars.length * 7) % 49) - 24;
+          var rot = ((i * 31 + 13) % 61) - 30;
+          return '<span class="ch" style="--i:' + i + ";--fx:" + dx + "px;--fr:" + rot + 'deg">' + esc(ch) + "</span>";
+        }).join("");
+      }
       function spawnRing(x, y) {
         if (reduceMotionFx) return;
         var layer = document.getElementById("fx-burst");
@@ -2527,10 +2875,28 @@
         }
         if (gs.banner) {
           var b = gs.banner;
-          var color = b.tone === "red" ? "#e0655c" : b.tone === "white" ? "#ece5d3" : "#ecd28a";
-          var shadow = b.tone === "red" ? "0 0 22px rgba(179,55,47,0.55)" : "0 0 22px rgba(201,169,98,0.4)";
-          h += '<div class="fx-banner"><div class="inner' + animOnce("fxbanner:" + b.id, " anim-banner") + '"><p class="b-title" style="color:' + color + ";text-shadow:" + shadow + '">' + esc(b.title) + "</p>" +
-            (b.sub ? '<p class="b-sub">' + esc(b.sub) + "</p>" : "") + "</div></div>";
+          if (b.variant) {
+            /* effect-name splash (all cards) / crumbling blocked variant */
+            var dur = b.ms || 1500;
+            var lenCls = "len-" + Math.min(4, Math.max(2, String(b.title).length));
+            var toneCls = b.tone === "red" ? "tone-red" : b.tone === "white" ? "tone-white" : "tone-gold";
+            h += '<div class="fx-effect ' + b.variant + " " + toneCls + '" style="--fx-dur:' + dur + 'ms" role="status" aria-label="効果発動：' + esc(b.title) + '">' +
+              '<div class="fx-effect-bg"></div>' +
+              (b.variant === "guard" ? '<span class="fx-effect-ring"></span>' : "") +
+              '<div class="fx-effect-inner">' +
+              (b.actor || b.role ? '<p class="fx-effect-actor">' + esc(b.actor || "") + (b.role ? ' の <b>' + esc(b.role) + "</b>" + (b.roman ? ' <span class="fx-effect-roman">' + esc(b.roman) + "</span>" : "") : "") + "</p>" : "") +
+              '<div class="fx-effect-rule"><span class="ln"></span><span class="dia"></span><span class="ln"></span></div>' +
+              '<p class="fx-effect-title ' + lenCls + '">' + effectSpans(b.title) + "</p>" +
+              (b.variant === "blocked" ? '<span class="fx-effect-crack"></span>' : "") +
+              (b.sub ? '<p class="fx-effect-sub">' + esc(b.sub) + "</p>" : "") +
+              (b.variant === "blocked" ? '<span class="fx-effect-stamp">守護 ― 無効</span>' : "") +
+              "</div></div>";
+          } else {
+            var color = b.tone === "red" ? "#e0655c" : b.tone === "white" ? "#ece5d3" : "#ecd28a";
+            var shadow = b.tone === "red" ? "0 0 22px rgba(179,55,47,0.55)" : "0 0 22px rgba(201,169,98,0.4)";
+            h += '<div class="fx-banner"><div class="inner' + animOnce("fxbanner:" + b.id, " anim-banner") + '"><p class="b-title" style="color:' + color + ";text-shadow:" + shadow + '">' + esc(b.title) + "</p>" +
+              (b.sub ? '<p class="b-sub">' + esc(b.sub) + "</p>" : "") + "</div></div>";
+          }
         }
         if (gs.turnNote && ms >= 0) {
           var mine = gs.turnNote.seat === ms;
@@ -2546,9 +2912,40 @@
         // sound cues keyed to fx ids (each client plays its own)
         if (gs.banner && gs.banner.id !== seenFx.banner) {
           seenFx.banner = gs.banner.id;
-          centerBurst("gold", 9, 95);
-          if (gs.banner.title === "守護") Sound.sfx.block();
-          if (gs.banner.title === "交換") Sound.sfx.swap();
+          var bb = gs.banner;
+          if (bb.variant === "blocked") {
+            Sound.sfx.block();
+            // embers fall as the letters crumble (synced to the crack)
+            setTimeout(function () { centerBurst("red", 12, 85); }, Math.round((bb.ms || 1950) * 0.27));
+          } else if (bb.variant === "effect" || bb.variant === "guard") {
+            centerBurst(bb.tone === "red" ? "red" : "gold", 16, 135);
+            spawnRing(window.innerWidth / 2, window.innerHeight * 0.46);
+            if (bb.title === "守護") Sound.sfx.block();
+            if (bb.title === "交換") Sound.sfx.swap();
+          } else if (bb.variant === "dormant") {
+            /* hushed — no burst for an effect that has not woken yet */
+          } else {
+            centerBurst("gold", 9, 95);
+            if (bb.title === "守護") Sound.sfx.block();
+            if (bb.title === "交換") Sound.sfx.swap();
+          }
+        }
+        // play showcase bursts / sounds (each client renders its own),
+        // keyed to the showcase modal id — same cues the banner splash
+        // used, retimed for the longer hold.
+        if (gs.modal && gs.modal.kind === "playShow" && gs.modal.id !== seenFx.playShow) {
+          seenFx.playShow = gs.modal.id;
+          var pm = gs.modal;
+          if (pm.variant === "blocked") {
+            Sound.sfx.block();
+            // embers fall as the letters crumble (synced to the crack)
+            setTimeout(function () { centerBurst("red", 12, 85); }, Math.round((pm.autoMs || 3950) * 0.27));
+          } else if (pm.variant === "effect" || pm.variant === "guard") {
+            centerBurst(pm.tone === "red" ? "red" : "gold", 16, 135);
+            spawnRing(window.innerWidth / 2, window.innerHeight * 0.46);
+            if (pm.title === "守護") Sound.sfx.block();
+            if (pm.title === "交換") Sound.sfx.swap();
+          }
         }
         if (gs.turnNote && gs.turnNote.id !== seenFx.turn && ms >= 0) {
           seenFx.turn = gs.turnNote.id;
@@ -2729,13 +3126,13 @@
         var knownMe = gs.knownBy[op];        // what opponent knows about my hand
         appRiseSeenFor = "game";
         var panelKey = "panel:" + gs.matchNo + ":" + gs.phase + ":" + gs.turn + ":" + gs.log.length;
-        var h = "";
+        var hasPanel = gs.phase === "guess" || gs.phase === "sagePick" || gs.phase === "deathPick" || gs.phase === "execPick";
+        var h = '<div class="game-board' + (hasPanel ? " has-panel" : "") + '">';
 
         /* opponent zone */
         h += '<section class="zone" aria-label="相手の場"><div class="zone-head"><p class="zone-name">' +
           esc(gs.names[op] || "相手") + ' <span class="sub">謀略の対手</span>' +
           (gs.guard[op] ? '<span class="badge">守護中</span>' : "") +
-          (knownMe && gs.phase !== "over" ? '<span class="badge red">あなたの手札は透視されている</span>' : "") +
           '</p><p style="font-size:12px;color:var(--dim);margin:0">山札 <span class="font-display" style="font-size:16px;color:var(--text)">' + gs.deck.length + "</span> 枚</p></div>";
         h += '<div class="zone-body"><div class="handrow">';
         var oppDisplay = gs.hands[op];
@@ -2753,14 +3150,14 @@
         } else {
           oppDisplay.forEach(function (c) {
             if (gs.phase !== "deathPick" && knownOpp && knownOpp.uid === c.uid && gs.phase !== "over") {
-              h += '<div class="opp-card' + animOnce("known:" + gs.matchNo + ":" + c.uid, " anim-flip") + '">' + cardFace(c, { small: true }) + '<p class="known-label">正体判明</p></div>';
+              h += '<div class="opp-card' + animOnce("known:" + gs.matchNo + ":" + c.uid, " anim-flip") + '">' + cardFace(c, { small: true }) + eyeBadge("", "透視で正体が判明しているカード") + "</div>";
             } else {
               h += '<div class="opp-card anim-deal">' + cardBack({}) + "</div>";
             }
           });
         }
         if (!oppDisplay.length) h += '<p class="no-hand">手札なし</p>';
-        h += "</div>" + discardRow((gs.names[op] || "相手") + "の捨て札", gs.discards[op], gs.knightOrder) + "</div></section>";
+        h += "</div>" + discardRow((gs.names[op] || "相手") + "の捨て札", gs.discards[op], gs.knightOrder, op) + "</div></section>";
 
         /* center table */
         h += '<section class="table-box" aria-label="対戦テーブル"><div class="table-top"><div class="deck-pair">' +
@@ -2771,20 +3168,22 @@
           '<span class="vs">vs</span>' +
           spotCard("あなたが出した", gs.spots[ms], "spot:" + gs.matchNo + ":" + ms + ":" + (gs.spots[ms] ? gs.spots[ms].uid : "x")) +
           "</div></div>";
-        h += '<div class="trackers">' +
-          '<div class="tracker' + (girls >= 1 ? " hot-red" : "") + '"><p class="t-head"><span class="t-name">少女 ― 革命</span><span>' + pip(girls >= 1) + " " + pip(girls >= 2) + '</span></p><p class="t-note">' +
-          (girls === 0 ? "場に0枚：1枚目は無効" : girls === 1 ? "場に1枚：次の少女は公開処刑！" : "革命は発動済み") + "</p></div>" +
-          '<div class="tracker' + (knights >= 1 ? " hot-gold" : "") + '"><p class="t-head"><span class="t-name">貴族 ― 対面／対決</span><span>' + pip(knights >= 1) + " " + pip(knights >= 2) + '</span></p><p class="t-note">' +
-          (knights === 0 ? "場に0枚：1枚目は「対面」(見せ合いのみ)" : knights === 1 ? "場に1枚：次の貴族は「対決」(低い方が脱落)" : "対決は発動済み") + "</p></div>" +
-          "</div></section>";
+        /* compact tracker bar: counts + pips stay visible at a glance;
+           the full explanations live in the status sheet (tap to open). */
+        h += '<button type="button" class="trackers-compact" data-status aria-label="少女と貴族の進行状況の詳細を開く">' +
+          '<span class="tc-item"><span class="tc-name">少女</span>' + pip(girls >= 1) + pip(girls >= 2) + '<span>' + girls + '/2</span></span>' +
+          '<span class="tc-next' + (girls === 1 ? " hot" : "") + '">' + (girls === 0 ? "次は無効" : girls === 1 ? "次は公開処刑！" : "発動済み") + "</span>" +
+          '<span class="tc-item"><span class="tc-name">貴族</span>' + pip(knights >= 1) + pip(knights >= 2) + '<span>' + knights + '/2</span></span>' +
+          '<span class="tc-next' + (knights === 1 ? " hot" : "") + '">' + (knights === 0 ? "次は対面" : knights === 1 ? "次は対決！" : "発動済み") + "</span>" +
+          '<span class="tc-open">詳細 ›</span></button></section>';
 
         /* my zone */
-        h += '<section class="zone" aria-label="あなたの場" style="margin-top:16px"><div class="zone-head"><div style="min-width:0;flex:1">' +
-          discardRow("あなたの捨て札", gs.discards[ms], gs.knightOrder) +
-          '</div><p class="zone-name">あなた' +
+        h += '<section class="zone" aria-label="あなたの場"><div class="zone-head"><p class="zone-name">あなた' +
           (gs.guard[ms] ? '<span class="badge">守護中</span>' : "") +
           (gs.sage[ms] ? '<span class="badge dim">賢者の選択 予約中</span>' : "") +
-          "</p></div>";
+          '</p></div><div style="margin-top:4px">' +
+          discardRow("あなたの捨て札", gs.discards[ms], gs.knightOrder, ms) +
+          "</div>";
 
         /* phase panels */
         if (gs.phase === "guess") {
@@ -2847,7 +3246,10 @@
         } else {
           myDisplay.forEach(function (c) {
             var canPlay = gs.phase === "pick" && myTurn;
-            h += '<div class="handcard-wrap"><div class="handcard' + (canPlay && c.strength !== 10 ? " playable anim-glow" : "") + '" role="button" tabindex="0" data-uid="' + c.uid + '" data-strength="' + c.strength + '" data-canplay="' + (canPlay ? "1" : "0") + '" aria-label="' + esc(defOf(c.strength).role) + ' ― タップで効果を見る' + (canPlay && c.strength !== 10 ? "、上にスワイプで出す" : "") + '"><span class="anim-deal">' + cardFace(c, {}) + "</span></div>" +
+            var seenByOpp = !!(knownMe && knownMe.uid === c.uid && gs.phase !== "over");
+            h += '<div class="handcard-wrap"><div class="handcard' + (canPlay && c.strength !== 10 ? " playable anim-glow" : "") + '" role="button" tabindex="0" data-uid="' + c.uid + '" data-strength="' + c.strength + '" data-canplay="' + (canPlay ? "1" : "0") + '" aria-label="' + esc(defOf(c.strength).role) + ' ― タップで効果を見る' + (canPlay && c.strength !== 10 ? "、上にスワイプで出す" : "") + (seenByOpp ? "（相手に正体が判明している）" : "") + '"><span class="anim-deal">' + cardFace(c, {}) + "</span>" +
+              (seenByOpp ? eyeBadge("seen-by-opp", "相手に透視されているカード") : "") + "</div>" +
+              (seenByOpp ? '<span class="seen-caption">' + eyeSvg() + "相手に見られている</span>" : "") +
               (c.strength === 10 && canPlay ? '<span class="hint">英雄は出せない</span>' : "") +
               (canPlay && c.strength !== 10 ? '<span class="hint">タップ：効果 ／ ↑スワイプ：出す</span>' : "") +
               "</div>";
@@ -2865,20 +3267,28 @@
         if (gs.phase === "pick" && myTurn) h += '<p class="swipe-note">↑ カードを上へ弾くようにスワイプすると場に出ます（タップでは出ません）</p>';
         h += "</section>";
 
-        /* log */
-        h += '<section class="logbox" aria-label="対戦ログ"><ol>';
-        var tail = gs.log.slice(-4);
+        /* log: latest 2 lines only on the board; full log opens as a sheet */
+        h += '<div class="logbox" data-log role="button" tabindex="0" aria-label="対戦ログの全体を開く"><span class="log-open">ログ全体 ›</span><ol>';
+        var tail = gs.log.slice(-2);
         if (!tail.length) h += '<li style="color:var(--dim)">対戦ログ</li>';
         tail.forEach(function (e) {
           h += '<li class="' + (e.tone === "plain" ? "" : e.tone) + '">' + esc(e.text) + "</li>";
         });
-        h += "</ol></section>";
+        h += "</ol></div>";
 
         if (gs.screen === "playing") {
-          h += '<div style="margin-top:16px;text-align:center"><button type="button" class="chip-btn" id="btn-restart">この対戦を破棄して次の一戦へ</button>' +
-            (gameMode === "cpu" ? ' <button type="button" class="chip-btn" id="btn-quit-cpu">タイトルに戻る</button>' : "") + "</div>";
+          h += '<div class="game-actions"><button type="button" class="chip-btn" id="btn-restart">この対戦を破棄して次の一戦へ</button>' +
+            (gameMode === "cpu" ? '<button type="button" class="chip-btn" id="btn-quit-cpu">タイトルに戻る</button>' : "") + "</div>";
         }
+        h += "</div>";
         el.innerHTML = h;
+        el.querySelectorAll("[data-discards]").forEach(function (b) {
+          b.addEventListener("click", function () { Sound.sfx.click(); sheet = "discards"; render(); });
+        });
+        var stb = el.querySelector("[data-status]");
+        if (stb) stb.addEventListener("click", function () { Sound.sfx.click(); sheet = "status"; render(); });
+        var lgb = el.querySelector("[data-log]");
+        if (lgb) lgb.addEventListener("click", function () { Sound.sfx.click(); sheet = "log"; render(); });
 
         // wire panel buttons
         el.querySelectorAll("[data-guess]").forEach(function (b) {
@@ -3004,20 +3414,27 @@
         var h = "";
         var m = gs.modal;
 
-        /* played-card feature spotlight */
-        if (m && m.kind === "feature" && modalVisibleToMe(m)) {
+        /* played-card showcase: enlarged card + effect name, auto-only.
+           No confirmation button — it holds for its autoMs (effect
+           splash base + 2s) and the game flows on by itself. */
+        if (m && m.kind === "playShow" && modalVisibleToMe(m)) {
           var def = defOf(m.card.strength);
           var mine = m.side === ms;
-          h += '<div class="overlay dark" role="dialog" aria-label="' + esc(def.role) + 'の効果"><div class="modal-card' + animOnce("modal:" + m.id, " anim-rise") + '">' +
-            '<p style="font-size:12px;letter-spacing:0.3em;margin:0;color:' + (mine ? "var(--accent-bright)" : "var(--red-text)") + '">' + (mine ? "あなたが出した" : esc(gs.names[op] || "相手") + " が出した") + "</p>" +
-            '<div class="' + animOnce("modalcard:" + m.id, "anim-flip") + '" style="margin:12px auto 0;width:160px;max-width:44vw">' + cardFace(m.card, { foil: true }) + "</div>" +
-            '<p class="font-mincho" style="margin:12px 0 0;font-size:24px;font-weight:700;letter-spacing:0.14em">' + def.role + '<span class="gold-text" style="margin-left:8px;font-size:20px">― ' + def.effectName + "</span></p>" +
-            '<p style="margin-top:4px;font-size:12px;letter-spacing:0.14em;color:var(--dim)">強さ ' + def.strength + "（" + def.roman + "）</p>" +
-            (m.note ? '<p class="note-box">' + esc(m.note) + "</p>" : "") +
-            '<p style="margin-top:12px;text-align:left;font-size:14px;line-height:1.7;color:rgba(236,229,211,0.9)">' + esc(def.desc) + "</p>" +
-            '<button type="button" class="btn-main' + (mine ? "" : " red") + '" data-close-modal>効果を確認した ― 続ける</button>' +
-            '<div class="autobar-track"><div class="autobar-fill anim-autobar"></div></div>' +
-            '<p class="autobar-note">そのまま待っても自動で進みます</p>' +
+          var dur = m.autoMs || 3500;
+          var lenCls = "len-" + Math.min(4, Math.max(2, String(m.title).length));
+          var toneCls = m.tone === "red" ? "tone-red" : m.tone === "white" ? "tone-white" : "tone-gold";
+          h += '<div class="overlay playshow-wrap" role="dialog" aria-label="' + esc(def.role) + ' ― ' + esc(m.title) + '"><div class="playshow ' + toneCls + " " + m.variant + '" style="--fx-dur:' + dur + 'ms">' +
+            '<p class="playshow-actor">' + (mine ? "あなた" : esc(gs.names[m.side] || "相手")) + ' の <b>' + esc(def.role) + '</b> <span class="fx-effect-roman">' + esc(def.roman) + "</span></p>" +
+            '<div class="playshow-stage">' +
+            (m.variant === "guard" ? '<span class="fx-effect-ring"></span>' : "") +
+            '<div class="playshow-cardwrap">' + cardFace(m.card, { foil: true }) + "</div></div>" +
+            '<div class="fx-effect-rule"><span class="ln"></span><span class="dia"></span><span class="ln"></span></div>' +
+            '<div class="playshow-titlewrap"><p class="playshow-title ' + lenCls + '">' + effectSpans(m.title) + "</p>" +
+            (m.variant === "blocked" ? '<span class="fx-effect-crack"></span>' : "") + "</div>" +
+            (m.sub ? '<p class="playshow-sub">' + esc(m.sub) + "</p>" : "") +
+            (m.variant === "blocked" ? '<div><span class="fx-effect-stamp">守護 ― 無効</span></div>' : "") +
+            (m.note && m.variant !== "blocked" ? '<p class="note-box">' + esc(m.note) + "</p>" : "") +
+            '<div class="autobar-track"><div class="autobar-fill" style="animation:autoBar ' + dur + 'ms linear both"></div></div>' +
             "</div></div>";
         }
 
@@ -3248,6 +3665,52 @@
           h += "</ul></div></div>";
         }
 
+        /* Shared enlarged discard sheet — opened from EITHER player's
+           discard strip. Simple two-section layout: opponent's discards
+           on top, your own below, each as enlarged thumbnails in
+           chronological order (oldest first). */
+        if (sheet === "discards" && ms >= 0) {
+          h += '<div class="overlay sheet-wrap" role="dialog" aria-label="捨て札一覧"><div class="sheet-card anim-rise">' +
+            '<div class="sheet-head"><h2>捨て札一覧</h2><button type="button" class="chip-btn" data-close-sheet>閉じる</button></div>' +
+            '<div class="discard-sheet-group"><p class="dsg-head"><span class="zone-name">' + esc(gs.names[op] || "相手") + 'の捨て札</span><span style="font-size:11px;color:var(--dim)">' + gs.discards[op].length + '枚 ― 捨てた順</span></p>' +
+            discardBigList(gs.discards[op], gs.knightOrder) + "</div>" +
+            '<div class="discard-sheet-group"><p class="dsg-head"><span class="zone-name">あなたの捨て札</span><span style="font-size:11px;color:var(--dim)">' + gs.discards[ms].length + '枚 ― 捨てた順</span></p>' +
+            discardBigList(gs.discards[ms], gs.knightOrder) + "</div>" +
+            '<p style="margin:14px 0 0;font-size:11px;line-height:1.6;color:var(--dim)">※貴族は金＝1枚目（対面）、赤＝2枚目（対決）で表示しています。</p>' +
+            "</div></div>";
+        }
+
+        /* status sheet: full tracker explanations behind the compact bar */
+        if (sheet === "status" && ms >= 0) {
+          var gAll = gs.discards[0].concat(gs.discards[1]);
+          var gN = gAll.filter(function (c) { return c.strength === 1; }).length;
+          var kN = gAll.filter(function (c) { return c.strength === 6; }).length;
+          h += '<div class="overlay sheet-wrap" role="dialog" aria-label="進行状況"><div class="sheet-card anim-rise">' +
+            '<div class="sheet-head"><h2>進行状況</h2><button type="button" class="chip-btn" data-close-sheet>閉じる</button></div>' +
+            '<div class="status-detail"><p class="sd-head"><span class="t-name" style="font-family:\'Shippori Mincho B1\',serif">少女 ― 革命</span><span>' + pip(gN >= 1) + " " + pip(gN >= 2) + ' <b>' + gN + ' / 2枚</b></span></p>' +
+            '<p style="margin:6px 0 0;font-size:13px;line-height:1.7;color:rgba(236,229,211,0.88)">' + (gN === 0 ? "場に0枚：1枚目の少女は何も起こらない。" : gN === 1 ? "場に1枚：次の少女で「公開処刑」が発動する（英雄は転生できる）。" : "革命は発動済み。少女はもう場に出ない。") + "</p></div>" +
+            '<div class="status-detail"><p class="sd-head"><span style="font-family:\'Shippori Mincho B1\',serif">貴族 ― 対面／対決</span><span>' + pip(kN >= 1) + " " + pip(kN >= 2) + ' <b>' + kN + ' / 2枚</b></span></p>' +
+            '<p style="margin:6px 0 0;font-size:13px;line-height:1.7;color:rgba(236,229,211,0.88)">' + (kN === 0 ? "場に0枚：1枚目は「対面」（手札を見せ合うだけ）。" : kN === 1 ? "場に1枚：次の貴族は「対決」（手札の低い方が脱落、同点は両者脱落）。" : "対決は発動済み。貴族はもう場に出ない。") + "</p></div>" +
+            '<div class="status-detail"><p style="margin:0;font-size:13px;line-height:1.7;color:rgba(236,229,211,0.88)">山札 <b>' + gs.deck.length + '枚</b> ／ 転生札 ' + (gs.tensei ? "あり（英雄が捨てさせられると復活）" : "使用済み") + '<br>捨て札 合計 <b>' + gAll.length + '枚</b>（あなた ' + gs.discards[ms].length + '枚 ／ ' + esc(gs.names[op] || "相手") + " " + gs.discards[op].length + '枚）</p>' +
+            '<button type="button" class="btn-sub" data-open-discards style="margin-top:10px">捨て札一覧を開く</button></div>' +
+            "</div></div>";
+        }
+
+        /* full log sheet */
+        if (sheet === "log") {
+          h += '<div class="overlay sheet-wrap" role="dialog" aria-label="対戦ログ"><div class="sheet-card anim-rise">' +
+            '<div class="sheet-head"><h2>対戦ログ</h2><button type="button" class="chip-btn" data-close-sheet>閉じる</button></div>';
+          if (!gs.log.length) h += '<p class="center-note" style="margin-top:14px">まだログはありません</p>';
+          else {
+            h += '<ol class="log-full">';
+            gs.log.slice().reverse().forEach(function (e) {
+              h += '<li class="' + (e.tone === "plain" ? "" : e.tone) + '">' + esc(e.text) + "</li>";
+            });
+            h += "</ol>";
+          }
+          h += "</div></div>";
+        }
+
         root.innerHTML = h;
 
         root.querySelectorAll("[data-close-modal]").forEach(function (b) {
@@ -3261,6 +3724,9 @@
         });
         root.querySelectorAll("[data-open-rules]").forEach(function (b) {
           b.addEventListener("click", function () { Sound.sfx.click(); sheet = "rules"; render(); });
+        });
+        root.querySelectorAll("[data-open-discards]").forEach(function (b) {
+          b.addEventListener("click", function () { Sound.sfx.click(); sheet = "discards"; render(); });
         });
         var ci = root.querySelector("[data-close-inspect]");
         if (ci) ci.addEventListener("click", function () { inspectCard = null; render(); });
@@ -3296,6 +3762,9 @@
 
       function render() {
         if (dragging) return; // never rebuild the DOM mid-swipe
+        // One-screen game layout: lock page scroll while a match is on
+        // screen (waiting / landing keep normal flow).
+        try { document.body.classList.toggle("in-game", !!(inRoom && gs.screen !== "waiting")); } catch (e) {}
         // Rebuild only the layers whose displayed state changed;
         // rebuilding an unchanged layer restarts its CSS animations
         // and re-decodes its card images, which reads as a reload.
