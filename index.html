@@ -133,7 +133,13 @@
       /* ---------- cards ---------- */
       .card-frame { border: 1px solid rgba(201,169,98,0.8); border-radius: 8px; background: #060607; padding: 5px;
         box-shadow: 0 16px 36px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(0,0,0,0.9), inset 0 0 0 2px rgba(201,169,98,0.22); }
-      .card-frame.royal { padding: 7px; border-color: rgba(230,204,133,0.95);
+      /* Royal (9・10) keeps the exact same geometry as normal cards:
+         padding must match .card-frame (5px) — the old 7px shrank the
+         artwork by 4px and the whole card by ~3px inside every fixed-
+         width slot, making 皇帝/英雄 look slightly smaller. The royal
+         distinction is carried by border colour, glow and the inner
+         ring/gem only, never by size. */
+      .card-frame.royal { padding: 5px; border-color: rgba(230,204,133,0.95);
         box-shadow: 0 0 0 1px rgba(230,204,133,0.45), 0 0 24px rgba(201,169,98,0.35), 0 16px 36px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(0,0,0,0.9), inset 0 0 0 3px rgba(201,169,98,0.35); }
       .card-inner { position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 4px; background: #121216; }
       .cardface { position: relative; aspect-ratio: 3/5; width: 100%; }
@@ -174,7 +180,31 @@
       @keyframes flashGold { from { opacity: 0.85; } to { opacity: 0; } }
       @keyframes autoBar { from { width: 100%; } to { width: 0%; } }
       @keyframes stampIn { 0% { transform: scale(2.3) rotate(-16deg); opacity: 0; } 55% { transform: scale(0.92) rotate(-11deg); opacity: 1; } 100% { transform: scale(1) rotate(-11deg); opacity: 1; } }
-      @keyframes slashIn { from { transform: translate(-50%,-50%) rotate(-24deg) scaleX(0); opacity: 0; } to { transform: translate(-50%,-50%) rotate(-24deg) scaleX(1); opacity: 1; } }
+      /* A card that is discarded / shot down does not get slashed any
+         more: it shudders with a decaying wobble while the colour
+         drains, the blur ramps up and it sinks away to nothing. */
+      @keyframes dissolveOut {
+        0% { opacity: 1; filter: saturate(0.55) brightness(0.86) blur(0); transform: rotate(0deg) translate(0, 0) scale(1); }
+        10% { transform: rotate(-1.7deg) translate(-4px, 0) scale(1); }
+        20% { transform: rotate(1.4deg) translate(3px, 1px) scale(1); filter: saturate(0.5) brightness(0.84) blur(1px); opacity: 0.99; }
+        30% { transform: rotate(-1deg) translate(-2px, 1px) scale(0.998); opacity: 0.96; }
+        42% { transform: rotate(0.6deg) translate(1px, 3px) scale(0.994); filter: saturate(0.42) brightness(0.8) blur(3px); opacity: 0.86; }
+        58% { transform: rotate(-0.35deg) translate(0, 5px) scale(0.986); filter: saturate(0.32) brightness(0.74) blur(5.5px); opacity: 0.64; }
+        74% { transform: rotate(0.15deg) translate(0, 8px) scale(0.972); filter: saturate(0.22) brightness(0.68) blur(9px); opacity: 0.38; }
+        88% { transform: rotate(0deg) translate(0, 10px) scale(0.958); filter: saturate(0.12) brightness(0.62) blur(13px); opacity: 0.16; }
+        100% { opacity: 0; filter: saturate(0) brightness(0.55) blur(16px); transform: rotate(0deg) translate(0, 12px) scale(0.945); }
+      }
+      /* 捜査 hit: the crosshair sweeps in oversized, snaps onto the
+         card with a small settle bounce, holds while the card
+         dissolves beneath it, then fades last so the final read is
+         "that card was shot down". */
+      @keyframes crosshairLife {
+        0% { opacity: 0; transform: translate(-50%,-50%) scale(1.85) rotate(-14deg); }
+        14% { opacity: 1; transform: translate(-50%,-50%) scale(0.94) rotate(0deg); }
+        19% { opacity: 1; transform: translate(-50%,-50%) scale(1.03) rotate(0deg); }
+        24%, 76% { opacity: 1; transform: translate(-50%,-50%) scale(1) rotate(0deg); }
+        100% { opacity: 0; transform: translate(-50%,-50%) scale(1.06) rotate(0deg); }
+      }
       @keyframes suckGlow { 0% { opacity: 0; transform: translateY(6px) scale(0.9); } 30% { opacity: 0.9; } 100% { opacity: 0; transform: translateY(-46px) scale(0.6); } }
       @keyframes foilSweep { 0% { background-position: 130% 0; } 55%,100% { background-position: -130% 0; } }
       @keyframes foilShift { from { background-position: 0% 0; } to { background-position: -220% 0; } }
@@ -193,7 +223,8 @@
       .anim-autobar { animation: autoBar 10s linear both; }
       .anim-autobar-fast { animation: autoBar 4.5s linear both; }
       .anim-stamp { animation: stampIn 0.45s cubic-bezier(0.2,0.9,0.3,1.4) 0.25s both; }
-      .anim-slash { animation: slashIn 0.4s ease-out 0.15s both; }
+      .anim-dissolve { animation: dissolveOut 2.2s ease-in-out 0.55s both; will-change: transform, filter, opacity; }
+      .anim-dissolve-late { animation-delay: 0.95s; }
       .anim-suck { animation: suckGlow 0.28s ease-in both; }
       /* ---------- client-side burst layer (gold particles / rings) ---------- */
       #fx-burst { position: fixed; inset: 0; z-index: 45; pointer-events: none; overflow: hidden; }
@@ -203,13 +234,10 @@
       @keyframes ringGrow { from { width: 26px; height: 26px; opacity: 0.95; } to { width: 190px; height: 190px; opacity: 0; } }
       .fx-edgeglow { position: absolute; inset: 0; box-shadow: inset 0 0 90px rgba(230,204,133,0.5), inset 0 0 26px rgba(201,169,98,0.35); animation: edgeGlow 1.7s ease-out both; }
       @keyframes edgeGlow { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }
-      @media (prefers-reduced-motion: reduce) {
-        .anim-flip,.anim-rise,.anim-deal,.anim-banner,.anim-turnband,.anim-glow,.anim-shake,.anim-autobar,.anim-autobar-fast,.anim-stamp,.anim-slash,.anim-suck,.anim-foil,.foil-text,.anim-flake,.fx-particle,.fx-ring,.fx-edgeglow { animation: none !important; }
-        .fx-effect-bg,.fx-effect-inner,.fx-effect-actor,.fx-effect-rule .ln,.fx-effect-rule .dia,.fx-effect-title .ch,.fx-effect-sub,.fx-effect-ring,.fx-effect-crack,.fx-effect-stamp,.playshow-cardwrap,.playshow-title .ch,.playshow-actor,.playshow-sub { animation: none !important; }
-        .fx-effect-crack { display: none !important; }
-        .fx-effect-stamp { opacity: 1 !important; }
-        .eye-badge { animation: none !important; }
-      }
+      /* NOTE: prefers-reduced-motion suppression was removed entirely
+         (user request): every effect — showcase letters, particles,
+         rings, edge glow, card animations — plays regardless of the
+         device's reduced-motion setting. */
 
       /* ---------- zones & table ---------- */
       .zone { margin-top: 24px; }
@@ -260,11 +288,12 @@
       .discard-sheet-group:first-of-type { margin-top: 10px; }
       .discard-sheet-group .dsg-head { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; }
       .discard-sheet-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-      .discard-big { width: 62px; text-align: center; }
-      .discard-big .cap { margin-top: 3px; font-size: 9.5px; line-height: 1.45; color: var(--dim); }
-      .discard-big .cap b { display: block; color: var(--text); font-size: 10.5px; }
-      .discard-big .cap .ord-gold { color: var(--accent-bright); font-weight: 700; }
-      .discard-big .cap .ord-red { color: var(--red-text); font-weight: 700; }
+      /* Enlarged discard tile: artwork + strength number only — no
+         role name, no effect name, no caption (kept deliberately
+         minimal so the discarded kinds read at a glance). */
+      .discard-big { position: relative; width: 62px; flex-shrink: 0; }
+      .discard-big img { display: block; width: 100%; aspect-ratio: 3/5; object-fit: cover; object-position: top; border-radius: 4px; border: 1px solid rgba(201,169,98,0.6); box-shadow: 0 0 0 1px rgba(0,0,0,0.85); }
+      .discard-big .dstr { position: absolute; left: 0; top: 0; border-radius: 4px 0 6px 0; background: rgba(0,0,0,0.85); padding: 1px 7px; font-family: "Cormorant Garamond", serif; font-size: 17px; font-weight: 700; line-height: 1.3; color: var(--accent-bright); }
       /* compact tracker bar (少女/貴族 counts) — full notes live in the status sheet */
       .trackers-compact { margin-top: 8px; width: 100%; display: flex; align-items: center; gap: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); padding: 7px 10px; font-size: 11px; text-align: left; min-height: 36px; }
       .trackers-compact .tc-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
@@ -365,7 +394,14 @@
       .stamp { position: absolute; right: -12px; top: -8px; z-index: 30; border-radius: 4px; border: 2px solid var(--red-text); background: rgba(0,0,0,0.7); padding: 2px 8px; font-family: "Shippori Mincho B1", serif; font-size: 18px; font-weight: 700; letter-spacing: 0.14em; color: var(--red-text); }
       .stamp.gold { border-color: var(--accent-bright); color: var(--accent-bright); }
       .stamp.dim { border-color: var(--dim); color: var(--dim); }
-      .slash { pointer-events: none; position: absolute; left: 50%; top: 50%; z-index: 30; height: 3px; width: 130%; border-radius: 2px; background: var(--red-text); box-shadow: 0 0 12px rgba(224,101,92,0.8); }
+      .crosshair-mark { pointer-events: none; position: absolute; left: 50%; top: 50%; z-index: 30; width: 74%; aspect-ratio: 1; color: var(--accent-bright); filter: drop-shadow(0 0 7px rgba(230,204,133,0.75)); animation: crosshairLife 3s ease-out 0.25s both; }
+      .crosshair-mark svg { display: block; width: 100%; height: 100%; }
+      /* Persistent mark on a discard that was shot down by 捜査, so a
+         hit stays identifiable in the discard pile afterwards. */
+      .snipe-badge { position: absolute; right: -3px; top: -3px; z-index: 5; width: 13px; height: 13px; border-radius: 50%; background: rgba(0,0,0,0.85); color: var(--accent-bright); box-shadow: 0 0 0 1px rgba(230,204,133,0.65), 0 0 5px rgba(230,204,133,0.45); display: flex; align-items: center; justify-content: center; }
+      .snipe-badge svg { display: block; width: 10px; height: 10px; }
+      .discard-big .snipe-badge { width: 19px; height: 19px; right: -4px; top: -4px; }
+      .discard-big .snipe-badge svg { width: 14px; height: 14px; }
       .reveal-card-wrap { position: relative; margin: 16px auto 0; width: 144px; }
       @media (min-width: 640px) { .reveal-card-wrap { width: 160px; } }
 
@@ -419,22 +455,85 @@
       .fx-effect.tone-gold .fx-effect-title { color: #ecd28a; text-shadow: 0 0 28px rgba(201,169,98,0.6), 0 0 6px rgba(230,204,133,0.5), 0 3px 0 rgba(0,0,0,0.45); }
       .fx-effect.tone-red .fx-effect-title { color: #ef8a80; text-shadow: 0 0 28px rgba(179,55,47,0.65), 0 0 6px rgba(224,101,92,0.5), 0 3px 0 rgba(0,0,0,0.45); }
       .fx-effect.tone-white .fx-effect-title { color: #f2ecd9; text-shadow: 0 0 26px rgba(220,208,170,0.45), 0 3px 0 rgba(0,0,0,0.45); }
-      .fx-effect-title .ch { display: inline-block; animation: fxLetterIn 0.5s cubic-bezier(0.16,1.2,0.3,1) both; animation-delay: calc(var(--i) * 60ms + 90ms); will-change: transform, filter, opacity; }
-      @keyframes fxLetterIn { 0% { opacity: 0; transform: translateY(30px) scale(1.7); filter: blur(10px); } 60% { opacity: 1; filter: blur(0); } 100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
+      .fx-effect-title .ch { display: inline-block; animation: fxLetterIn 0.68s cubic-bezier(0.16,1.2,0.3,1) both; animation-delay: calc(var(--i) * 100ms + 90ms); will-change: transform, filter, opacity; }
+      @keyframes fxLetterIn { 0% { opacity: 0; transform: translateY(34px) scale(1.75); filter: blur(10px); } 55% { opacity: 1; filter: blur(0); transform: translateY(-5px) scale(1.05); } 78% { transform: translateY(2px) scale(0.99); } 100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
       .fx-effect-sub { margin: 13px 0 0; font-size: 13.5px; letter-spacing: 0.14em; color: rgba(236,229,211,0.94); text-shadow: 0 1px 8px rgba(0,0,0,0.8); animation: fxFadeUp 0.5s 0.38s ease both; }
       /* dormant (少女1枚目 — the effect does not fire yet): hushed, grey, no slam */
       .fx-effect.dormant .fx-effect-title { color: #a79c82; text-shadow: 0 0 14px rgba(0,0,0,0.55); }
       .fx-effect.dormant .fx-effect-title .ch { animation-name: fxLetterDormant; animation-duration: 0.7s; }
       @keyframes fxLetterDormant { from { opacity: 0; transform: translateY(8px); filter: blur(5px); } to { opacity: 0.85; transform: translateY(0); filter: blur(0.4px); } }
       .fx-effect.dormant .fx-effect-sub { color: var(--dim); }
-      /* guard (乙女の守護が立つ): a shield ring breathes out behind the name */
-      .fx-effect-ring { position: absolute; left: 50%; top: 50%; width: 220px; height: 220px; margin: -110px 0 0 -110px; border-radius: 50%; border: 1px solid rgba(236,210,138,0.9); box-shadow: inset 0 0 34px rgba(201,169,98,0.22); pointer-events: none; animation: fxGuardRing var(--fx-dur, 1550ms) ease-out both; }
+      /* expanding shape behind EVERY effect (元は守護だけだった丸を全効果へ):
+         a thin outline circle breathes out behind the name / card for
+         all effects. Cards 9・10 (皇帝・英雄) get a hexagram instead —
+         also outline only, no fill — that ROTATES while it expands. */
+      .fx-effect-ring { position: absolute; left: 50%; top: 50%; width: 220px; height: 220px; margin: -110px 0 0 -110px; border-radius: 50%; border: 1px solid rgba(236,210,138,0.9); box-shadow: inset 0 0 34px rgba(201,169,98,0.22); pointer-events: none; z-index: 0; animation: fxGuardRing var(--fx-dur, 1550ms) ease-out both; }
       @keyframes fxGuardRing { 0% { transform: scale(0.5); opacity: 0; } 30% { opacity: 0.95; } 100% { transform: scale(1.3); opacity: 0; } }
+      .fx-effect-hex { position: absolute; left: 50%; top: 50%; width: 244px; height: 244px; margin: -122px 0 0 -122px; pointer-events: none; z-index: 0; color: inherit; filter: drop-shadow(0 0 14px currentColor); animation: fxHexGrow var(--fx-dur, 1550ms) ease-out both; }
+      .fx-effect-hex svg { width: 100%; height: 100%; display: block; overflow: visible; }
+      @keyframes fxHexGrow { 0% { transform: scale(0.42) rotate(0deg); opacity: 0; } 22% { opacity: 0.95; } 100% { transform: scale(1.38) rotate(84deg); opacity: 0; } }
+      .playshow-stage .fx-effect-hex { width: 238px; height: 238px; margin: -119px 0 0 -119px; }
+      /* ---------- effect image icons (効果のイメージアイコン) ----------
+         Every effect carries a large, faint line icon of its image —
+         flame, crosshair, eye, shield, skull, crossed swords, open
+         book, circling arrows, crown — tinted by the splash tone
+         (currentColor). Placement is deliberately split:
+         - In the text-only banner splash (.fx-effect) the icon stays
+           BEHIND the lettering (z-index 0), so the effect name and
+           sub text are never covered.
+         - In the play showcase (.playshow) the icon is emitted inside
+           .playshow-stage and floats IN FRONT of the card only — a
+           faint ghost over the artwork (see .playshow-stage .fx-icon
+           below). It is sized to the stage, so it never reaches the
+           effect name or the description text around it.
+         Its density ramps thin→thick over the hold (fxiRamp, below):
+         the artwork reads first, then the glyph firms up. Each glyph
+         also only stirs a little (flicker / slow spin / breathe / bob
+         / sway / drift) for the whole hold. */
+      /* Icon density RAMPS over the whole hold (--fx-dur): it starts
+         almost transparent so the artwork reads first, then gradually
+         thickens to --fxi-peak so the glyph's meaning lands before the
+         showcase closes. (Fixed 0.14–0.17 was nearly invisible.) */
+      .fx-icon { --fxi-peak: 0.5; position: absolute; left: 50%; top: 50%; width: min(66vw, 320px); height: min(66vw, 320px); transform: translate(-50%,-50%); color: inherit; opacity: 0; pointer-events: none; z-index: 0; filter: drop-shadow(0 0 18px currentColor); animation: fxiRamp var(--fx-dur, 1500ms) ease both; }
+      @keyframes fxiRamp { 0% { opacity: 0; } 14% { opacity: 0.05; } 38% { opacity: calc(var(--fxi-peak) * 0.38); } 68% { opacity: calc(var(--fxi-peak) * 0.78); } 86%, 100% { opacity: var(--fxi-peak); } }
+      .fx-icon svg { width: 100%; height: 100%; display: block; overflow: visible; transform-origin: 50% 50%; }
+      .fxi-flame svg { animation: fxiFlame 2.4s ease-in-out infinite; }
+      @keyframes fxiFlame { 0%,100% { transform: scale(1) rotate(-1.4deg); } 28% { transform: scale(1.05) rotate(1.6deg) translateY(-2px); } 55% { transform: scale(0.98) rotate(-0.6deg); } 78% { transform: scale(1.03) rotate(0.8deg); } }
+      .fxi-crosshair svg { animation: fxiSpin 22s linear infinite; }
+      .fxi-swap svg { animation: fxiSpin 18s linear infinite reverse; }
+      @keyframes fxiSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      .fxi-eye svg { animation: fxiPulse 3.6s ease-in-out infinite; }
+      .fxi-crown svg { animation: fxiPulse 3.4s ease-in-out infinite; }
+      @keyframes fxiPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.055); } }
+      .fxi-shield svg { animation: fxiBreathe 3s ease-in-out infinite; }
+      @keyframes fxiBreathe { 0%,100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.06); opacity: 1; } }
+      .fxi-skull svg { animation: fxiBob 3.8s ease-in-out infinite; }
+      @keyframes fxiBob { 0%,100% { transform: translateY(0) rotate(-1.8deg); } 50% { transform: translateY(-5px) rotate(1.8deg); } }
+      .fxi-swords svg { animation: fxiSway 3.4s ease-in-out infinite; }
+      @keyframes fxiSway { 0%,100% { transform: rotate(-2.4deg); } 50% { transform: rotate(2.4deg); } }
+      .fxi-book svg { animation: fxiFloat 4.2s ease-in-out infinite; }
+      @keyframes fxiFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+      /* hushed states: the dormant 革命 keeps only a near-still ember
+         of an icon; a blocked effect's icon dims further as it crumbles */
+      .dormant .fx-icon { --fxi-peak: 0.22; }
+      .dormant .fx-icon svg { animation-duration: 7s; }
+      .blocked .fx-icon { --fxi-peak: 0.34; }
+      /* play showcase: the icon lives inside .playshow-stage and
+         floats IN FRONT of the card only — a ghost over the artwork
+         that starts near-invisible and thickens to --fxi-peak (0.64)
+         across the hold, so it ends clearly readable. The stage is
+         exactly the card's box, so the icon (sized to the stage,
+         glyph centred) can never reach the effect name, the actor
+         line or the sub text. */
+      .playshow-stage .fx-icon { --fxi-peak: 0.64; z-index: 3; width: 100%; height: 100%; }
+      .playshow.dormant .fx-icon { --fxi-peak: 0.24; }
+      .playshow.blocked .fx-icon { --fxi-peak: 0.38; }
+      .playshow > *:not(.fx-icon) { position: relative; z-index: 1; }
       /* blocked (守護に阻まれた): intact → tremble → crack → letters blur, scatter and crumble down */
       .fx-effect.blocked .fx-effect-title .ch { animation: fxCrumble var(--fx-dur, 1950ms) cubic-bezier(0.3,0.6,0.6,1) both; animation-delay: calc(var(--i) * 55ms); }
       @keyframes fxCrumble {
         0% { opacity: 0; transform: translateY(18px) scale(1.35); filter: blur(6px); }
-        9% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+        13% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
         23% { opacity: 1; transform: translateX(0) rotate(0deg); filter: blur(0); }
         26% { transform: translateX(-2px) rotate(-1deg); }
         29% { transform: translateX(2px) rotate(1deg); }
@@ -482,9 +581,15 @@
       .playshow.tone-gold .playshow-title { color: #ecd28a; text-shadow: 0 0 28px rgba(201,169,98,0.6), 0 0 6px rgba(230,204,133,0.5), 0 3px 0 rgba(0,0,0,0.45); }
       .playshow.tone-red .playshow-title { color: #ef8a80; text-shadow: 0 0 28px rgba(179,55,47,0.65), 0 0 6px rgba(224,101,92,0.5), 0 3px 0 rgba(0,0,0,0.45); }
       .playshow.tone-white .playshow-title { color: #f2ecd9; text-shadow: 0 0 26px rgba(220,208,170,0.45), 0 3px 0 rgba(0,0,0,0.45); }
-      .playshow-title .ch { display: inline-block; animation: fxLetterIn 0.5s cubic-bezier(0.16,1.2,0.3,1) both; animation-delay: calc(var(--i) * 60ms + 90ms); will-change: transform, filter, opacity; }
+      /* Letter slam, deliberately slow: each glyph takes over a second
+         to land and the stagger between letters is wide, so the whole
+         name visibly assembles character by character (previously
+         0.5s + 60ms stagger — over before the eye could catch it).
+         The last of 4 letters settles around 2s into the ~3.5s hold,
+         leaving a beat of stillness before the showcase closes. */
+      .playshow-title .ch { display: inline-block; animation: fxLetterIn 1.15s cubic-bezier(0.16,1.2,0.3,1) both; animation-delay: calc(var(--i) * 240ms + 160ms); will-change: transform, filter, opacity; }
       .playshow.dormant .playshow-title { color: #a79c82; text-shadow: 0 0 14px rgba(0,0,0,0.55); }
-      .playshow.dormant .playshow-title .ch { animation-name: fxLetterDormant; animation-duration: 0.7s; }
+      .playshow.dormant .playshow-title .ch { animation-name: fxLetterDormant; animation-duration: 1.5s; }
       .playshow.blocked .playshow-title .ch { animation: fxCrumble var(--fx-dur, 3950ms) cubic-bezier(0.3,0.6,0.6,1) both; animation-delay: calc(var(--i) * 55ms); }
       .playshow-sub { margin: 12px 0 0; text-align: center; font-size: 13.5px; letter-spacing: 0.12em; color: rgba(236,229,211,0.94); animation: fxFadeUp 0.5s 0.38s ease both; }
       .playshow.dormant .playshow-sub { color: var(--dim); }
@@ -1560,6 +1665,9 @@
         var hand = G.hands[target];
         var card = hand.find(function (c) { return c.uid === uid; });
         if (!card) return "discarded";
+        /* Shot down by a 捜査 guess: tag the card itself so the hit
+           stays visible on it in the discard pile afterwards. */
+        if (source === "soldier") card.sniped = 1;
         var rest = hand.filter(function (c) { return c.uid !== uid; });
         if (card.strength === 10) {
           G.discards[target] = G.discards[target].concat([card], rest);
@@ -1598,6 +1706,7 @@
           var r = forcedDiscard(target, card.uid, "soldier");
           return r === "reincarnated" ? "reincarnated" : "hit";
         }
+        card.sniped = 1;
         G.discards[target] = G.discards[target].concat([card]);
         G.hands[target] = [];
         return "hit";
@@ -2663,9 +2772,14 @@
         if (showFoil) h += '<span class="anim-foil" style="animation-delay:' + ((def.strength % 5) * 0.7) + 's"></span>';
         if (royal) {
           h += '<span class="royal-ring"></span>';
-          h += '<span class="royal-gem" style="background:' +
-            (def.strength === 9 ? "radial-gradient(circle at 35% 35%, #ff9d8a, #a41230 72%)" : "radial-gradient(circle at 35% 35%, #fff6d8, #c9a962 72%)") +
-            ';box-shadow:0 0 9px rgba(230,204,133,0.85)"></span>';
+          /* The diamond gem is a large-card ornament only: on small
+             cards (opponent hand, table spots, lists) it just crowds
+             the art, so it is omitted there. */
+          if (!opts.small) {
+            h += '<span class="royal-gem" style="background:' +
+              (def.strength === 9 ? "radial-gradient(circle at 35% 35%, #ff9d8a, #a41230 72%)" : "radial-gradient(circle at 35% 35%, #fff6d8, #c9a962 72%)") +
+              ';box-shadow:0 0 9px rgba(230,204,133,0.85)"></span>';
+          }
         }
         h += frameCorners(opts.small);
         return h + "</div></div>";
@@ -2684,6 +2798,16 @@
           : '<div class="empty-slot">―</div>';
         return '<div class="spot">' + inner + '<p class="cap">' + esc(label) + "</p></div>";
       }
+      /* The 捜査 crosshair glyph, drawn exactly like the showcase
+         effect icon: a large lock-on overlay for the hit reveal, and
+         a miniature badge that stays on the card in the discard pile
+         so a shot-down card remains identifiable afterwards. */
+      function crosshairMark() {
+        return '<span class="crosshair-mark" aria-hidden="true"><svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"><circle cx="50" cy="50" r="24"/><path d="M50 6 v16 M50 78 v16 M6 50 h16 M78 50 h16"/><circle cx="50" cy="50" r="4" fill="currentColor" stroke="none"/></svg></span>';
+      }
+      function snipeBadge() {
+        return '<span class="snipe-badge" title="捜査で言い当てられた札"><svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" aria-hidden="true"><circle cx="50" cy="50" r="24"/><path d="M50 6 v16 M50 78 v16 M6 50 h16 M78 50 h16"/><circle cx="50" cy="50" r="5" fill="currentColor" stroke="none"/></svg></span>';
+      }
       /* Compact discard strip for the board: every discarded card is
          shown as an identifiable mini card (art + strength), oldest
          first, wrapping to at most two rows. When `seat` is a number
@@ -2695,17 +2819,13 @@
         if (!cards.length) thumbs = '<span class="none-text">なし</span>';
         cards.forEach(function (c) {
           var def = defOf(c.strength);
-          var badge = "", cls = "";
-          if (c.strength === 6) {
-            var order = knightOrder.indexOf(c.uid);
-            if (order === 0) { badge = "貴族1枚目・対面"; cls = "k-gold"; }
-            else if (order > 0) { badge = "貴族2枚目・対決"; cls = "k-red"; }
-          }
-          thumbs += '<span class="discard-item ' + cls + '" title="' + esc(def.role) + "（" + esc(def.effectName) + "）" + (badge ? " ― " + badge : "") + '">' +
+          /* Artwork + strength number only: no role/effect names, no
+             knight-order badges — order is read left to right. The
+             one exception is the small crosshair badge on a card
+             that was shot down by 捜査, so the hit stays readable. */
+          thumbs += '<span class="discard-item">' +
             '<img src="' + def.img + '" alt="' + esc(def.role) + '" draggable="false" />' +
-            '<span class="dstr">' + def.strength + "</span>" +
-            (badge ? '<span class="kbadge ' + (badge.indexOf("対面") >= 0 ? "gold" : "red") + '">' + badge + "</span>" : "") +
-            "</span>";
+            '<span class="dstr">' + def.strength + "</span>" + (c.sniped ? snipeBadge() : "") + "</span>";
         });
         if (typeof seat === "number") {
           return '<div class="discards"><button type="button" class="discard-pile" data-discards aria-label="' + esc(label) + " ― タップで両プレイヤーの捨て札一覧を開く\">" +
@@ -2714,20 +2834,17 @@
         }
         return '<div class="discards"><p class="dlabel">' + esc(label) + '<span class="dcount">' + cards.length + '枚</span></p><div class="discard-imgs">' + thumbs + "</div></div>";
       }
-      /* One player's discards as enlarged cards, chronological, for the sheet. */
-      function discardBigList(cards, knightOrder) {
+      /* One player's discards for the enlarged sheet, chronological.
+         Artwork + strength number only — no names or captions, so the
+         discarded kinds and counts read at a glance. (A crosshair
+         badge marks a card shot down by 捜査.) */
+      function discardBigList(cards) {
         if (!cards.length) return '<p class="none-text" style="font-size:12px">まだ捨て札はありません</p>';
         var h = '<div class="discard-sheet-grid">';
-        cards.forEach(function (c, i) {
+        cards.forEach(function (c) {
           var def = defOf(c.strength);
-          var ord = "";
-          if (c.strength === 6) {
-            var o = knightOrder.indexOf(c.uid);
-            if (o === 0) ord = '<span class="ord-gold">貴族1枚目・対面</span>';
-            else if (o > 0) ord = '<span class="ord-red">貴族2枚目・対決</span>';
-          }
-          h += '<div class="discard-big">' + cardFace(c, { small: true }) +
-            '<p class="cap"><b>' + (i + 1) + "枚目 ― " + def.strength + " " + esc(def.role) + "</b>" + (ord || esc(def.effectName)) + "</p></div>";
+          h += '<div class="discard-big"><img src="' + def.img + '" alt="' + esc(def.role) + '" draggable="false" />' +
+            '<span class="dstr">' + def.strength + "</span>" + (c.sniped ? snipeBadge() : "") + "</div>";
         });
         return h + "</div>";
       }
@@ -2801,10 +2918,7 @@
          expanding ring, and a win edge-glow. Purely local DOM in
          #fx-burst — nothing is written to the shared game state, so
          both modes and both online clients stay in sync as before. */
-      var reduceMotionFx = false;
-      try { reduceMotionFx = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
       function spawnParticles(x, y, color, count, power) {
-        if (reduceMotionFx) return;
         var layer = document.getElementById("fx-burst");
         if (!layer) return;
         for (var i = 0; i < count; i++) {
@@ -2843,8 +2957,58 @@
           return '<span class="ch" style="--i:' + i + ";--fx:" + dx + "px;--fr:" + rot + 'deg">' + esc(ch) + "</span>";
         }).join("");
       }
+      /* Effect image icons: one line glyph per effect name, drawn
+         large and faint — behind the letters in the text splash,
+         and in the showcase in front of the card only (emitted
+         inside .playshow-stage), never over the effect name or
+         description text. Each glyph has its own small idle motion
+         (see .fx-icon in the stylesheet). Keyed by the splash
+         title, so the blocked and dormant variants inherit their
+         effect's icon too. */
+      var FX_ICONS = {
+        "革命": { cls: "flame", svg: '<path d="M50 6 C58 21 74 31 74 55 a24 24 0 1 1 -48 0 C26 31 42 21 50 6 Z"/><path d="M50 79 a10 10 0 0 1 -10 -10 c0 -6 5 -10 10 -17 c5 7 10 11 10 17 a10 10 0 0 1 -10 10 Z"/>' },
+        "捜査": { cls: "crosshair", svg: '<circle cx="50" cy="50" r="24"/><path d="M50 6 v16 M50 78 v16 M6 50 h16 M78 50 h16"/><circle cx="50" cy="50" r="3.5" fill="currentColor" stroke="none"/>' },
+        "透視": { cls: "eye", svg: '<path d="M6 50 C22 29 78 29 94 50 C78 71 22 71 6 50 Z"/><circle cx="50" cy="50" r="13"/><circle cx="50" cy="50" r="4.5" fill="currentColor" stroke="none"/>' },
+        "守護": { cls: "shield", svg: '<path d="M50 7 L83 19 V47 C83 69 69 85 50 93 C31 85 17 69 17 47 V19 Z"/><path d="M50 21 L70 28.5 V47 C70 61 62 72 50 78 C38 72 30 61 30 47 V28.5 Z"/>' },
+        "疫病": { cls: "skull", svg: '<path d="M50 12 a26 26 0 0 1 26 26 c0 9 -4 15 -9 19 v11 H33 V57 c-5 -4 -9 -10 -9 -19 a26 26 0 0 1 26 -26 Z"/><circle cx="39" cy="42" r="5.5" fill="currentColor" stroke="none"/><circle cx="61" cy="42" r="5.5" fill="currentColor" stroke="none"/><path d="M50 50 l-3.5 7 h7 Z" fill="currentColor" stroke="none"/><path d="M43 60 v8 M50 60 v8 M57 60 v8"/>' },
+        "対面": { cls: "swords", svg: '<path d="M27 73 L76 24"/><path d="M30 70 L40 60"/><circle cx="22" cy="78" r="4"/><path d="M73 73 L24 24"/><path d="M60 70 L70 60"/><circle cx="78" cy="78" r="4"/>' },
+        "対決": { cls: "swords", svg: '<path d="M27 73 L76 24"/><path d="M30 70 L40 60"/><circle cx="22" cy="78" r="4"/><path d="M73 73 L24 24"/><path d="M60 70 L70 60"/><circle cx="78" cy="78" r="4"/>' },
+        "選択": { cls: "book", svg: '<path d="M50 28 C41 19 26 16 13 20 V76 C26 72 41 74 50 83 C59 74 74 72 87 76 V20 C74 16 59 19 50 28 Z"/><path d="M50 28 V83"/>' },
+        "交換": { cls: "swap", svg: '<path d="M22 50 A28 28 0 0 1 76 40"/><path d="M76 40 l-12 -1 M76 40 l-2 12"/><path d="M78 50 A28 28 0 0 1 24 60"/><path d="M24 60 l12 1 M24 60 l2 -12"/>' },
+        "公開処刑": { cls: "crown", svg: '<path d="M15 72 L20 34 L37 52 L50 28 L63 52 L80 34 L85 72 Z"/><path d="M15 83 H85"/><circle cx="20" cy="26" r="3.2"/><circle cx="50" cy="20" r="3.2"/><circle cx="80" cy="26" r="3.2"/><circle cx="50" cy="62" r="3.5" fill="currentColor" stroke="none"/>' }
+      };
+      function effectIcon(title) {
+        var d = FX_ICONS[title];
+        if (!d) return "";
+        return '<span class="fx-icon fxi-' + d.cls + '" aria-hidden="true"><svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d.svg + "</svg></span>";
+      }
+      /* Expanding shape behind an effect — for EVERY effect now, not
+         just 守護. Normal effects get the outline circle (.fx-effect-
+         ring, fxGuardRing). Cards 9・10 (皇帝・英雄) get a hexagram
+         instead: two overlapping outline triangles, no fill, that
+         rotates while it expands (.fx-effect-hex, fxHexGrow).
+         Royal detection works from whichever context calls this: the
+         play showcase passes its modal (card.strength 9/10), the text
+         splash passes its banner (roman IX/X, role 皇帝/英雄, or the
+         emperor-only 公開処刑 splash title). 少女's 革命 splash is
+         titled 革命 with card strength 1, so it correctly stays a
+         circle even though it also triggers an execution. */
+      function isRoyalFx(o) {
+        if (!o) return false;
+        if (o.strength === 9 || o.strength === 10) return true;
+        if (o.card && (o.card.strength === 9 || o.card.strength === 10)) return true;
+        if (o.roman === "IX" || o.roman === "X") return true;
+        if (o.role === "皇帝" || o.role === "英雄") return true;
+        if (o.title === "公開処刑") return true;
+        return false;
+      }
+      function effectShape(o) {
+        if (isRoyalFx(o)) {
+          return '<span class="fx-effect-hex" aria-hidden="true"><svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><polygon points="50,7 88,71 12,71" fill="none"/><polygon points="50,93 12,29 88,29" fill="none"/></svg></span>';
+        }
+        return '<span class="fx-effect-ring"></span>';
+      }
       function spawnRing(x, y) {
-        if (reduceMotionFx) return;
         var layer = document.getElementById("fx-burst");
         if (!layer) return;
         var r = document.createElement("span");
@@ -2854,7 +3018,6 @@
         setTimeout(function () { if (r.parentNode) r.parentNode.removeChild(r); }, 700);
       }
       function spawnEdgeGlow() {
-        if (reduceMotionFx) return;
         var layer = document.getElementById("fx-burst");
         if (!layer) return;
         var g = document.createElement("div");
@@ -2882,7 +3045,8 @@
             var toneCls = b.tone === "red" ? "tone-red" : b.tone === "white" ? "tone-white" : "tone-gold";
             h += '<div class="fx-effect ' + b.variant + " " + toneCls + '" style="--fx-dur:' + dur + 'ms" role="status" aria-label="効果発動：' + esc(b.title) + '">' +
               '<div class="fx-effect-bg"></div>' +
-              (b.variant === "guard" ? '<span class="fx-effect-ring"></span>' : "") +
+              effectIcon(b.title) +
+              effectShape(b) +
               '<div class="fx-effect-inner">' +
               (b.actor || b.role ? '<p class="fx-effect-actor">' + esc(b.actor || "") + (b.role ? ' の <b>' + esc(b.role) + "</b>" + (b.roman ? ' <span class="fx-effect-roman">' + esc(b.roman) + "</span>" : "") : "") + "</p>" : "") +
               '<div class="fx-effect-rule"><span class="ln"></span><span class="dia"></span><span class="ln"></span></div>' +
@@ -3426,8 +3590,10 @@
           h += '<div class="overlay playshow-wrap" role="dialog" aria-label="' + esc(def.role) + ' ― ' + esc(m.title) + '"><div class="playshow ' + toneCls + " " + m.variant + '" style="--fx-dur:' + dur + 'ms">' +
             '<p class="playshow-actor">' + (mine ? "あなた" : esc(gs.names[m.side] || "相手")) + ' の <b>' + esc(def.role) + '</b> <span class="fx-effect-roman">' + esc(def.roman) + "</span></p>" +
             '<div class="playshow-stage">' +
-            (m.variant === "guard" ? '<span class="fx-effect-ring"></span>' : "") +
-            '<div class="playshow-cardwrap">' + cardFace(m.card, { foil: true }) + "</div></div>" +
+            effectShape(m) +
+            '<div class="playshow-cardwrap">' + cardFace(m.card, { foil: true }) + "</div>" +
+            effectIcon(m.title) +
+            "</div>" +
             '<div class="fx-effect-rule"><span class="ln"></span><span class="dia"></span><span class="ln"></span></div>' +
             '<div class="playshow-titlewrap"><p class="playshow-title ' + lenCls + '">' + effectSpans(m.title) + "</p>" +
             (m.variant === "blocked" ? '<span class="fx-effect-crack"></span>' : "") + "</div>" +
@@ -3445,10 +3611,11 @@
           h += '<div class="overlay dark" role="dialog" aria-label="' + esc(m.title) + '"><div class="modal-card' + animOnce("modal:" + m.id, " anim-rise") + '">' +
             '<p class="font-mincho" style="margin:0;font-size:28px;font-weight:700;letter-spacing:0.1em;color:' + titleColor + '">' + esc(m.title) + "</p>";
           if (m.card) {
-            var animCls = animOnce("reveal:" + m.id, m.tone === "hit" || m.tone === "discard" ? "anim-shake" : "anim-flip");
-            var filter = m.tone === "discard" ? "filter:saturate(0.5) brightness(0.82)" : m.tone === "reincarnate" ? "filter:drop-shadow(0 0 18px rgba(230,204,133,0.45))" : "";
+            var gone = m.tone === "hit" || m.tone === "discard";
+            var animCls = animOnce("reveal:" + m.id, gone ? (m.tone === "hit" ? "anim-dissolve anim-dissolve-late" : "anim-dissolve") : "anim-flip");
+            var filter = m.tone === "reincarnate" ? "filter:drop-shadow(0 0 18px rgba(230,204,133,0.45))" : "";
             h += '<div class="reveal-card-wrap"><div class="' + animCls + '" style="' + filter + '">' + cardFace(m.card, { foil: true }) + "</div>" +
-              (m.tone === "discard" || m.tone === "hit" ? '<span class="slash anim-slash"></span>' : "") +
+              (m.tone === "hit" ? crosshairMark() : "") +
               '<span class="stamp anim-stamp ' + stampCls + '">' + esc(m.stamp) + "</span></div>";
           } else {
             h += '<div class="reveal-card-wrap" style="width:112px"><div style="opacity:0.8">' + cardBack({}) + "</div>" +
